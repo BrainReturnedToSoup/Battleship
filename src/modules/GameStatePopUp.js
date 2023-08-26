@@ -19,10 +19,13 @@ export class GameStatePopUp {
 
   //sort of an intermediary state between either the player or the bot making a move
   //will set the style to default
-  moveMade() {}
+  updateAfterMove() {}
 
   //an intermediary state, will show something like 'pick your ship placements'
   currentlyPickingShips() {}
+
+  //essentially will reset all event based styling to default
+  gameReset() {}
 
   returnElementFrag() {}
 }

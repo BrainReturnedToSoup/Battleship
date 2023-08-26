@@ -3,7 +3,7 @@ export class UI {
 
   //-----------UI-ACTION-PUB-SUB------------//
 
-  #emitEventToSubscribers(event) {}
+  #emitButtonActionEventToSubscribers(event) {}
 
   #subscribers = {};
 
@@ -18,16 +18,23 @@ export class UI {
 
   playerWins() {}
 
+  playerSunkAShip() {}
+
   botsTurn() {}
 
   botWins() {}
 
+  botSunkAShip() {}
+
   //sort of an intermediary state between either the player or the bot making a move
   //will set the style to default
-  moveMade() {}
+  updateAfterMove() {}
 
   //same thing, an intermediary state, most likely a default styling
   currentlyPickingShips() {}
+
+  //essentially will reset all event based styling to default
+  gameReset() {}
 
   returnElementFrag() {}
 }

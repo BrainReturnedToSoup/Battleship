@@ -64,6 +64,8 @@ class Battleship {
     document.body.append(this.#gameInstance);
   }
 
+  //-----------OBSERVER-BASED-FUNCTIONALITIES-----------//
+
   #listenForUIActions(action) {
     this.#validUIActions[action]();
   }
@@ -88,40 +90,69 @@ class Battleship {
     //used to activate different displays
     //due to the current game state
     //using the game state pop up instance and UI in some way
-    playerWins: () => {
-      const { gameStatePopUp } = this.#helperClassInstances;
 
-      gameStatePopUp.playerWins();
-    },
-    playerPicked: () => {
+    //********************MID*GAME*EVENTS********************//
+
+    playerWins: () => {
       const { ui, gameStatePopUp } = this.#helperClassInstances;
 
-      ui.botsTurn();
-      gameStatePopUp.botsTurn();
+      ui.playerWins();
+      gameStatePopUp.playerWins();
     },
     playerSunkAShip: () => {
-      const { gameStatePopUp } = this.#helperClassInstances;
+      const { ui, gameStatePopUp } = this.#helperClassInstances;
 
+      ui.playerSunkAShip();
       gameStatePopUp.playerSunkAShip();
     },
-
-    //*********************************************************//
-
-    botWins: () => {
-      const { gameStatePopUp } = this.#helperClassInstances;
-
-      gameStatePopUp.botWins();
-    },
-    botPicked: () => {
+    playersTurn: () => {
       const { ui, gameStatePopUp } = this.#helperClassInstances;
 
       ui.playersTurn();
       gameStatePopUp.playersTurn();
     },
+
+    //*******************************************************//
+
+    botWins: () => {
+      const { ui, gameStatePopUp } = this.#helperClassInstances;
+
+      ui.botWins();
+      gameStatePopUp.botWins();
+    },
     botSunkAShip: () => {
       const { gameStatePopUp } = this.#helperClassInstances;
 
       gameStatePopUp.botSunkAShip();
+    },
+    botsTurn: () => {
+      const { ui, gameStatePopUp } = this.#helperClassInstances;
+
+      ui.botsTurn();
+      gameStatePopUp.botsTurn();
+    },
+
+    //******************GENERAL*GAME*EVENTS*****************//
+
+    inBetweenMoves: () => {
+      const { ui, gameStatePopUp } = this.#helperClassInstances;
+
+      ui.updateAfterMove();
+      gameStatePopUp.updateAfterMove();
+    },
+
+    currentlyPickingShips: () => {
+      const { ui, gameStatePopUp } = this.#helperClassInstances;
+
+      ui.currentlyPickingShips();
+      gameStatePopUp.currentlyPickingShips();
+    },
+
+    gameReset: () => {
+      const { ui, gameStatePopUp } = this.#helperClassInstances;
+
+      ui.gameReset();
+      gameStatePopUp.gameReset();
     },
   };
 
