@@ -87,7 +87,7 @@ class Battleship {
   #validGameStateEvents = {
     //used to activate different displays
     //due to the current game state
-    //using the game state pop up instance
+    //using the game state pop up instance and UI in some way
     playerWins: () => {
       const { gameStatePopUp } = this.#helperClassInstances;
 
@@ -142,6 +142,7 @@ class Battleship {
   newGame() {
     const { game } = this.#helperClassInstances;
 
+    //resets the game state and activates the screen to pick ship placements
     game.reset();
     game.pickShipPlacement();
   }

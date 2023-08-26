@@ -13,7 +13,7 @@ export class UI {
 
   //-----------------APIs-------------------//
 
-  //for updating the background style to match the game state in some way
+  //for updating the background style to match the corresponding gamestate
   playersTurn() {}
 
   playerWins() {}
@@ -21,6 +21,13 @@ export class UI {
   botsTurn() {}
 
   botWins() {}
+
+  //sort of an intermediary state between either the player or the bot making a move
+  //will set the style to default
+  moveMade() {}
+
+  //same thing, an intermediary state, most likely a default styling
+  currentlyPickingShips() {}
 
   returnElementFrag() {}
 }
