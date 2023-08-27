@@ -3,201 +3,6 @@ import { ErrorManager } from "../LowLevelModules/Error-Thrower";
 
 import { ElementRefManager } from "../LowLevelModules/Element-Ref-Manager";
 
-export class UI {
-  constructor(elementRefManager) {
-    try {
-      this.#helperClassInstances.argValidator.validate("constructor", {
-        elementRefManager,
-      });
-
-      this.#helperClassInstances.elementRefManager = elementRefManager;
-
-      this.#initHelperClassInstances();
-      this.#linkControllerToHelperClassPublishers();
-      this.#retrieveUIFragmennt();
-    } catch (error) {
-      //ADD ERROR HANDLING METHOD HERE
-    }
-  }
-
-  //---------STATE-AND-CONFIG-DATA----------//
-
-  #argumentValidationRules = {
-    constructor: {
-      elementRefManager: {
-        instanceof: ElementRefManager,
-      },
-    },
-    subscribe: {
-      methodName: {
-        type: "string",
-      },
-      subscriberMethod: {
-        type: "function",
-      },
-    },
-    unsubscribe: {
-      methodName: {
-        type: "string",
-      },
-    },
-  };
-
-  #helperClassInstances = {
-    argValidator: new ArgumentValidation(this.#argumentValidationRules),
-    UIconstructor: null,
-    UIfunctionality: null,
-    UIstyler: null,
-    elementRefManager: null,
-  };
-
-  #UIFrag = null;
-
-  //------------HELPER-METHODS--------------//
-
-  #initHelperClassInstances() {
-    const { elementRefManager } = this.#helperClassInstances;
-
-    this.#helperClassInstances.UIconstructor = new UIConstructor(
-      elementRefManager
-    );
-    this.#helperClassInstances.UIfunctionality = new UIFunctionality(
-      elementRefManager
-    );
-    this.#helperClassInstances.UIstyler = new UIStyler(elementRefManager);
-  }
-
-  #linkControllerToHelperClassPublishers() {
-    const { UIfunctionality } = this.#helperClassInstances,
-      classScope = this;
-
-    UIfunctionality.subscribe(
-      this.#emitButtonActionEventToSubscribers.bind(classScope)
-    );
-  }
-
-  #retrieveUIFragmennt() {
-    const { UIConstructor } = this.#helperClassInstances;
-
-    this.#UIFrag = UIConstructor.returnElementFrag();
-  }
-
-  //-----------UI-ACTION-PUB-SUB------------//
-
-  #emitButtonActionEventToSubscribers(event) {
-    try {
-      if (Object.keys(this.#subscribers).length > 0) {
-        for (let subscriber in this.#subscribers) {
-          this.#subscribers[subscriber](event);
-        }
-      }
-    } catch (error) {
-      //ADD ERROR HANDLING LOGIC HERE
-    }
-  }
-
-  #subscribers = {};
-
-  subscribe(methodName, subscriberMethod) {
-    try {
-      const { argValidator } = this.#helperClassInstances;
-      argValidator.validate("subscribe", { methodName, subscriberMethod });
-
-      if (!(methodName in this.#subscribers)) {
-        this.#subscribers[methodName] = subscriberMethod;
-      } else {
-        throw new TypeError(
-          `Failed to add subscriber to UI Controller button event publisher, the supplied method name appears to already exist as a subscriber, received '${methodName}'`
-        );
-      }
-    } catch (error) {
-      //ADD ERROR HANDLING LOGIC HERE
-    }
-  }
-
-  unsubscribe(methodName) {
-    try {
-      const { argValidator } = this.#helperClassInstances;
-      argValidator.validate("unsubscribe", { methodName });
-
-      if (methodName in this.#subscribers) {
-        delete this.#subscribers[methodName];
-      } else {
-        throw new TypeError(
-          `Failed to remove subscriber from UI Controller button event publisher, the supplied method name appears to not exist as a subscriber, received '${methodName}'`
-        );
-      }
-    } catch (error) {
-      //ADD ERROR HANDLING LOGIC HERE
-    }
-  }
-
-  //-----------------APIs-------------------//
-
-  //for updating the background style to match the corresponding gamestate
-  playersTurn() {
-    const { UIstyler } = this.#helperClassInstances;
-
-    UIstyler.playersTurn();
-  }
-
-  playerWins() {
-    const { UIstyler } = this.#helperClassInstances;
-
-    UIstyler.playersWins();
-  }
-
-  playerSunkAShip() {
-    const { UIstyler } = this.#helperClassInstances;
-
-    UIstyler.playerSunkAShip();
-  }
-
-  botsTurn() {
-    const { UIstyler } = this.#helperClassInstances;
-
-    UIstyler.botsTurn();
-  }
-
-  botWins() {
-    const { UIstyler } = this.#helperClassInstances;
-
-    UIstyler.botWins();
-  }
-
-  botSunkAShip() {
-    const { UIstyler } = this.#helperClassInstances;
-
-    UIstyler.botSunkAShip();
-  }
-
-  //sort of an intermediary state between either the player or the bot making a move
-  //will set the style to default
-  updateAfterMove() {
-    const { UIstyler } = this.#helperClassInstances;
-
-    UIstyler.updateAfterMove();
-  }
-
-  //same thing, an intermediary state, most likely a default styling
-  currentlyPickingShips() {
-    const { UIstyler } = this.#helperClassInstances;
-
-    UIstyler.currentlyPickingShips();
-  }
-
-  //essentially will reset all event based styling to default
-  gameReset() {
-    const { UIstyler } = this.#helperClassInstances;
-
-    UIstyler.gameReset();
-  }
-
-  returnElementFrag() {
-    return this.#UIFrag;
-  }
-}
-
 //creates the HTML structure
 export class UIConstructor {
   constructor(elementRefManager) {
@@ -243,21 +48,17 @@ export class UIConstructor {
 
   #elementTemplates = {
     mainContainer: `<div class="UI-Container UI Normal"></div>`,
-    pauseToggle: `<button class="Pause-Toggle UI Normal"></button>`,
-    newGame: `<button class="New-Game UI Normal"></button>`,
+    newGame: `<button class="New-Game UI Normal">New Game</button>`,
   };
 
   //-----------FRAGMENT-CONSTRUCTORS----------//
 
   #buildFragment() {
-    const { mainContainer, pauseToggle, newGame } =
-      this.#fragmentPortionBuilders;
+    const { mainContainer, newGame } = this.#fragmentPortionBuilders;
 
     const mainContainerElement = mainContainer(),
-      pauseToggleButtonElement = pauseToggle(),
       newGameButtonElement = newGame();
 
-    mainContainerElement.append(pauseToggleButtonElement);
     mainContainerElement.append(newGameButtonElement);
 
     this.#UIfragment = mainContainerElement;
@@ -277,18 +78,6 @@ export class UIConstructor {
       this.#storeElementRef(mainIdentifier, mainContainerElement);
 
       return mainContainerElement;
-    },
-    pauseToggle: () => {
-      const { pauseToggle } = this.#elementTemplates;
-
-      const range = document.createRange(),
-        frag = range.createContextualFragment(pauseToggle),
-        pauseToggleButtonElement = frag.firstElementChild;
-
-      const mainIdentifier = Array.from(pauseToggleButtonElement.classList)[0];
-      this.#storeElementRef(mainIdentifier, pauseToggleButtonElement);
-
-      return pauseToggleButtonElement;
     },
     newGame: () => {
       const { newGame } = this.#elementTemplates;
@@ -345,7 +134,6 @@ export class UIStyler {
 
   #neededElementRefs = {
     mainContainer: null,
-    pauseToggle: null,
     newGame: null,
   };
 
@@ -356,9 +144,6 @@ export class UIStyler {
 
     this.#neededElementRefs.mainContainer =
       elementRefManager.retrieveRef("UI-Container");
-
-    this.#neededElementRefs.pauseToggle =
-      elementRefManager.retrieveRef("Pause-Toggle");
 
     this.#neededElementRefs.newGame = elementRefManager.retrieveRef("New-Game");
   }
@@ -382,14 +167,6 @@ export class UIStyler {
 
       mainContainer.classList.remove(lastClass);
       mainContainer.classList.add(newStateTag);
-    },
-    pauseToggle: (newStateTag) => {
-      const { pauseToggle } = this.#neededElementRefs,
-        classList = pauseToggle.classList,
-        lastClass = classList[classList.length - 1];
-
-      pauseToggle.classList.remove(lastClass);
-      pauseToggle.classList.add(newStateTag);
     },
     newGame: (newStateTag) => {
       const { newGame } = this.#neededElementRefs,
@@ -517,7 +294,6 @@ export class UIFunctionality {
 
   #neededElementRefs = {
     mainContainer: null,
-    pauseToggle: null,
     newGame: null,
   };
 
@@ -528,9 +304,6 @@ export class UIFunctionality {
 
     this.#neededElementRefs.mainContainer =
       elementRefManager.retrieveRef("UI-Container");
-
-    this.#neededElementRefs.pauseToggle =
-      elementRefManager.retrieveRef("Pause-Toggle");
 
     this.#neededElementRefs.newGame = elementRefManager.retrieveRef("New-Game");
   }
@@ -546,24 +319,15 @@ export class UIFunctionality {
   //---------------BUTTON-LOGIC----------------//
 
   #buttonEvents = {
-    pauseToggle: "PauseToggle",
     newGame: "NewGame",
   };
 
   #buttonLogic(clickEvent) {
-    const { pauseToggle, newGame } = this.#neededElementRefs;
+    const { newGame } = this.#neededElementRefs;
 
-    if (clickEvent.target === pauseToggle) {
-      this.#pauseToggleClicked();
-    } else if (clickEvent.target === newGame) {
+    if (clickEvent.target === newGame) {
       this.#newGameClicked();
     }
-  }
-
-  #pauseToggleClicked() {
-    const { pauseToggle } = this.#buttonEvents;
-
-    this.#emitButtonActionEventToSubscribers(pauseToggle);
   }
 
   #newGameClicked() {
@@ -620,5 +384,202 @@ export class UIFunctionality {
     } catch (error) {
       //ADD ERROR HANDLING LOGIC HERE
     }
+  }
+}
+
+//main controller class that combines the previous helpers together into a cohesive unit
+export class UI {
+  constructor(elementRefManager) {
+    try {
+      this.#helperClassInstances.argValidator.validate("constructor", {
+        elementRefManager,
+      });
+
+      this.#helperClassInstances.elementRefManager = elementRefManager;
+
+      this.#initHelperClassInstances();
+      this.#linkControllerToHelperClassPublishers();
+      this.#retrieveUIFragmennt();
+    } catch (error) {
+      //ADD ERROR HANDLING METHOD HERE
+    }
+  }
+
+  //---------STATE-AND-CONFIG-DATA----------//
+
+  #argumentValidationRules = {
+    constructor: {
+      elementRefManager: {
+        instanceof: ElementRefManager,
+      },
+    },
+    subscribe: {
+      methodName: {
+        type: "string",
+      },
+      subscriberMethod: {
+        type: "function",
+      },
+    },
+    unsubscribe: {
+      methodName: {
+        type: "string",
+      },
+    },
+  };
+
+  #helperClassInstances = {
+    argValidator: new ArgumentValidation(this.#argumentValidationRules),
+    UIconstructor: null,
+    UIfunctionality: null,
+    UIstyler: null,
+    elementRefManager: null,
+  };
+
+  #UIFrag = null;
+
+  //------------HELPER-METHODS--------------//
+
+  #initHelperClassInstances() {
+    const { elementRefManager } = this.#helperClassInstances;
+
+    this.#helperClassInstances.UIconstructor = new UIConstructor(
+      elementRefManager
+    );
+    this.#helperClassInstances.UIfunctionality = new UIFunctionality(
+      elementRefManager
+    );
+    this.#helperClassInstances.UIstyler = new UIStyler(elementRefManager);
+  }
+
+  #linkControllerToHelperClassPublishers() {
+    const { UIfunctionality } = this.#helperClassInstances,
+      classScope = this;
+
+    UIfunctionality.subscribe(
+      "UIController",
+      this.#emitButtonActionEventToSubscribers.bind(classScope)
+    );
+  }
+
+  #retrieveUIFragmennt() {
+    const { UIconstructor } = this.#helperClassInstances;
+
+    this.#UIFrag = UIconstructor.returnElementFrag();
+  }
+
+  //-----------UI-ACTION-PUB-SUB------------//
+
+  #emitButtonActionEventToSubscribers(event) {
+    try {
+      if (Object.keys(this.#subscribers).length > 0) {
+        for (let subscriber in this.#subscribers) {
+          this.#subscribers[subscriber](event);
+        }
+      }
+    } catch (error) {
+      //ADD ERROR HANDLING LOGIC HERE
+    }
+  }
+
+  #subscribers = {};
+
+  subscribe(methodName, subscriberMethod) {
+    try {
+      const { argValidator } = this.#helperClassInstances;
+      argValidator.validate("subscribe", { methodName, subscriberMethod });
+
+      if (!(methodName in this.#subscribers)) {
+        this.#subscribers[methodName] = subscriberMethod;
+      } else {
+        throw new TypeError(
+          `Failed to add subscriber to UI Controller button event publisher, the supplied method name appears to already exist as a subscriber, received '${methodName}'`
+        );
+      }
+    } catch (error) {
+      //ADD ERROR HANDLING LOGIC HERE
+    }
+  }
+
+  unsubscribe(methodName) {
+    try {
+      const { argValidator } = this.#helperClassInstances;
+      argValidator.validate("unsubscribe", { methodName });
+
+      if (methodName in this.#subscribers) {
+        delete this.#subscribers[methodName];
+      } else {
+        throw new TypeError(
+          `Failed to remove subscriber from UI Controller button event publisher, the supplied method name appears to not exist as a subscriber, received '${methodName}'`
+        );
+      }
+    } catch (error) {
+      //ADD ERROR HANDLING LOGIC HERE
+    }
+  }
+
+  //-----------------APIs-------------------//
+
+  //for updating the background style to match the corresponding gamestate
+  playersTurn() {
+    const { UIstyler } = this.#helperClassInstances;
+
+    UIstyler.playersTurn();
+  }
+
+  playerWins() {
+    const { UIstyler } = this.#helperClassInstances;
+
+    UIstyler.playerWins();
+  }
+
+  playerSunkAShip() {
+    const { UIstyler } = this.#helperClassInstances;
+
+    UIstyler.playerSunkAShip();
+  }
+
+  botsTurn() {
+    const { UIstyler } = this.#helperClassInstances;
+
+    UIstyler.botsTurn();
+  }
+
+  botWins() {
+    const { UIstyler } = this.#helperClassInstances;
+
+    UIstyler.botWins();
+  }
+
+  botSunkAShip() {
+    const { UIstyler } = this.#helperClassInstances;
+
+    UIstyler.botSunkAShip();
+  }
+
+  //sort of an intermediary state between either the player or the bot making a move
+  //will set the style to default
+  updateAfterMove() {
+    const { UIstyler } = this.#helperClassInstances;
+
+    UIstyler.updateAfterMove();
+  }
+
+  //same thing, an intermediary state, most likely a default styling
+  currentlyPickingShips() {
+    const { UIstyler, UIfunctionality } = this.#helperClassInstances;
+
+    UIstyler.currentlyPickingShips();
+  }
+
+  //essentially will reset all event based styling to default
+  gameReset() {
+    const { UIstyler, UIfunctionality } = this.#helperClassInstances;
+
+    UIstyler.gameReset();
+  }
+
+  returnElementFrag() {
+    return this.#UIFrag;
   }
 }
