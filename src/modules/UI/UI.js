@@ -371,29 +371,154 @@ export class UIStyler {
 
 //mainly to emit events corresponding to the UI button pressed
 export class UIFunctionality {
-  constructor(elementRefManager) {}
+  constructor(elementRefManager) {
+    try {
+      this.#helperClassInstances.argValidator.validate("constructor", {
+        elementRefManager,
+      });
+
+      this.#helperClassInstances.elementRefManager = elementRefManager;
+
+      this.#retrieveElementRefs();
+
+      this.#initEventListeners();
+    } catch (error) {
+      //ADD ERROR HANDLING LOGIC HERE
+    }
+  }
 
   //----------STATE-AND-CONFIG-DATA-----------//
 
+  #argumentValidationRules = {
+    constructor: {
+      elementRefManager: {
+        instanceof: ElementRefManager,
+      },
+    },
+    subscribe: {
+      methodName: {
+        type: "string",
+      },
+      subscriberMethod: {
+        type: "function",
+      },
+    },
+    unsubscribe: {
+      methodName: {
+        type: "string",
+      },
+    },
+  };
+
+  #helperClassInstances = {
+    argValidator: new ArgumentValidation(this.#argumentValidationRules),
+    elementRefManager: null,
+  };
+
+  #neededElementRefs = {
+    mainContainer: null,
+    pauseToggle: null,
+    newGame: null,
+  };
+
   //-------------HELPER-METHODS---------------//
+
+  #retrieveElementRefs() {
+    const { elementRefManager } = this.#helperClassInstances;
+
+    this.#neededElementRefs.mainContainer =
+      elementRefManager.retrieveRef("UI-Container");
+
+    this.#neededElementRefs.pauseToggle =
+      elementRefManager.retrieveRef("Pause-Toggle");
+
+    this.#neededElementRefs.newGame = elementRefManager.retrieveRef("New-Game");
+  }
+
+  #initEventListeners() {
+    const { mainContainer } = this.#neededElementRefs;
+
+    mainContainer.addEventListeners("click", (e) => {
+      this.#buttonLogic(e);
+    });
+  }
+
+  //---------------BUTTON-LOGIC----------------//
+
+  #buttonEvents = {
+    pauseToggle: "PauseToggle",
+    newGame: "NewGame",
+  };
+
+  #buttonLogic(clickEvent) {
+    const { pauseToggle, newGame } = this.#neededElementRefs;
+
+    if (clickEvent.target === pauseToggle) {
+      this.#pauseToggleClicked();
+    } else if (clickEvent.target === newGame) {
+      this.#newGameClicked();
+    }
+  }
+
+  #pauseToggleClicked() {
+    const { pauseToggle } = this.#buttonEvents;
+
+    this.#emitButtonActionEventToSubscribers(pauseToggle);
+  }
+
+  #newGameClicked() {
+    const { newGame } = this.#buttonEvents;
+
+    this.#emitButtonActionEventToSubscribers(newGame);
+  }
 
   //------------UI-ACTION-PUB-SUB-------------//
 
-  #emitButtonActionEventToSubscribers(event) {}
+  #emitButtonActionEventToSubscribers(event) {
+    try {
+      if (Object.keys(this.#subscribers).length > 0) {
+        for (let subscriber in this.#subscribers) {
+          this.#subscribers[subscriber](event);
+        }
+      }
+    } catch (error) {
+      //ADD ERROR HANDLING LOGIC HERE
+    }
+  }
 
   #subscribers = {};
 
   subscribe(methodName, subscriberMethod) {
     try {
+      const { argValidator } = this.#helperClassInstances;
+      argValidator.validate("subscribe", { methodName, subscriberMethod });
+
+      if (!(methodName in this.#subscribers)) {
+        this.#subscribers[methodName] = subscriberMethod;
+      } else {
+        throw new TypeError(
+          `Failed to add subscriber to UI button event publisher, the supplied method name appears to already exist as a subscriber, received '${methodName}'`
+        );
+      }
     } catch (error) {
-      //ADD ERROR HANDLING METHOD HERE
+      //ADD ERROR HANDLING LOGIC HERE
     }
   }
 
   unsubscribe(methodName) {
     try {
+      const { argValidator } = this.#helperClassInstances;
+      argValidator.validate("unsubscribe", { methodName });
+
+      if (methodName in this.#subscribers) {
+        delete this.#subscribers[methodName];
+      } else {
+        throw new TypeError(
+          `Failed to remove subscriber from UI button event publisher, the supplied method name appears to not exist as a subscriber, received '${methodName}'`
+        );
+      }
     } catch (error) {
-      //ADD ERROR HANDLING METHOD HERE
+      //ADD ERROR HANDLING LOGIC HERE
     }
   }
 }
