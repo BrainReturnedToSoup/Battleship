@@ -1,4 +1,4 @@
-import { UI } from "./UI";
+import { UI } from "./UI/UI";
 import { Game } from "./Game";
 import { GameStatePopUp } from "./GameStatePopUp";
 
