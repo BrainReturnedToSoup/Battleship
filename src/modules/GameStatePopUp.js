@@ -1,5 +1,5 @@
 export class GameStatePopUp {
-  constructor(elementReferenceManager) {}
+  constructor(elementRefManager) {}
 
   //----------------APIs-----------------//
 

@@ -74,7 +74,7 @@ class Battleship {
     pause: () => {
       this.pauseCurrentGame();
     },
-    unpause: () => {
+    resume: () => {
       this.resumeCurrentGame();
     },
     newGame: () => {
@@ -121,8 +121,9 @@ class Battleship {
       gameStatePopUp.botWins();
     },
     botSunkAShip: () => {
-      const { gameStatePopUp } = this.#helperClassInstances;
+      const { ui, gameStatePopUp } = this.#helperClassInstances;
 
+      ui.botSunkAShip();
       gameStatePopUp.botSunkAShip();
     },
     botsTurn: () => {
