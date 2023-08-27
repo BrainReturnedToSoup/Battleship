@@ -1,3 +1,8 @@
+import { ArgumentValidation } from "../LowLevelModules/Argument-Validation";
+import { ErrorManager } from "../LowLevelModules/Error-Thrower";
+
+import { ElementRefManager } from "../LowLevelModules/Element-Ref-Manager";
+
 export class UI {
   constructor(elementRefManager) {
     try {
@@ -97,6 +102,10 @@ export class UI {
 export class UIConstructor {
   constructor(elementRefManager) {
     try {
+      this.#helperClassInstance.argValidator.validate("constructor", {
+        elementRefManager,
+      });
+
       this.#helperClassInstance.elementRefManager = elementRefManager;
 
       this.#buildFragment();
@@ -107,7 +116,16 @@ export class UIConstructor {
 
   //----------STATE-AND-CONFIG-DATA-----------//
 
+  #argumentValidationRules = {
+    constructor: {
+      elementRefManager: {
+        instanceof: ElementRefManager,
+      },
+    },
+  };
+
   #helperClassInstance = {
+    argValidator: new ArgumentValidation(this.#argumentValidationRules),
     elementRefManager: null,
   };
 
@@ -124,9 +142,9 @@ export class UIConstructor {
   //------------ELEMENT-TEMPLATES-------------//
 
   #elementTemplates = {
-    mainContainer: `<div class="UI-Container UI"></div>`,
-    pauseToggle: `<button class="Pause-Toggle UI"></button>`,
-    newGame: `<button class="New-Game UI"></button>`,
+    mainContainer: `<div class="UI-Container UI Normal"></div>`,
+    pauseToggle: `<button class="Pause-Toggle UI Normal"></button>`,
+    newGame: `<button class="New-Game UI Normal"></button>`,
   };
 
   //-----------FRAGMENT-CONSTRUCTORS----------//
@@ -198,9 +216,13 @@ export class UIConstructor {
 export class UIStyler {
   constructor(elementRefManager) {
     try {
+      this.#helperClassInstances.argValidator.validate("constructor", {
+        elementRefManager,
+      });
+
       this.#helperClassInstances.elementRefManager = elementRefManager;
 
-      this.#retrieveStoredElementRefs();
+      this.#retrieveElementRefs();
     } catch (error) {
       //ADD ERROR HANDLING LOGIC HERE
     }
@@ -208,7 +230,16 @@ export class UIStyler {
 
   //-----------STATE-AND-CONFIG-DATA----------//
 
+  #argumentValidationRules = {
+    constructor: {
+      elementRefManager: {
+        instanceof: ElementRefManager,
+      },
+    },
+  };
+
   #helperClassInstances = {
+    argValidator: new ArgumentValidation(this.#argumentValidationRules),
     elementRefManager: null,
   };
 
@@ -220,7 +251,7 @@ export class UIStyler {
 
   //--------------HELPER-METHODS--------------//
 
-  #retrieveStoredElementRefs() {
+  #retrieveElementRefs() {
     const { elementRefManager } = this.#helperClassInstances;
 
     this.#neededElementRefs.mainContainer =
@@ -234,56 +265,108 @@ export class UIStyler {
 
   //---------------APPLY-STYLES---------------//
 
-  #normal = {
-    mainContainer: () => {},
-    pauseToggle: () => {},
-    newGame: () => {},
+  #stateClassTags = {
+    normal: "Normal",
+    playersTurn: "Players-Turn",
+    playerWins: "Player-Wins",
+    botsTurn: "Bots-Turn",
+    botWins: "Bot-Wins",
+    currentlyPickingShips: "Currently-Picking-Ships",
   };
 
-  #playersTurn = {
-    mainContainer: () => {},
+  #alterState = {
+    mainContainer: (newStateTag) => {
+      const { mainContainer } = this.#neededElementRefs,
+        classList = mainContainer.classList,
+        lastClass = classList[classList.length - 1];
+
+      mainContainer.classList.remove(lastClass);
+      mainContainer.classList.add(newStateTag);
+    },
+    pauseToggle: (newStateTag) => {
+      const { pauseToggle } = this.#neededElementRefs,
+        classList = pauseToggle.classList,
+        lastClass = classList[classList.length - 1];
+
+      pauseToggle.classList.remove(lastClass);
+      pauseToggle.classList.add(newStateTag);
+    },
+    newGame: (newStateTag) => {
+      const { newGame } = this.#neededElementRefs,
+        classList = newGame.classList,
+        lastClass = classList[classList.length - 1];
+
+      newGame.classList.remove(lastClass);
+      newGame.classList.add(newStateTag);
+    },
   };
 
-  #botsTurn = {
-    mainContainer: () => {},
-  };
-
-  #playerWins = {
-    mainContainer: () => {},
-    pauseToggle: () => {},
-    newGame: () => {},
-  };
-
-  #botWins = {
-    mainContainer: () => {},
-    pauseToggle: () => {},
-    newGame: () => {},
-  };
+  #applyState(newStateTag) {
+    for (let element in this.#alterState) {
+      this.#alterState[element](newStateTag);
+    }
+  }
 
   //-------------------APIs-------------------//
 
   //for updating the background style to match the corresponding gamestate
-  playersTurn() {}
+  playersTurn() {
+    const { playersTurn } = this.#stateClassTags;
 
-  playerWins() {}
+    this.#applyState(playersTurn);
+  }
 
-  playerSunkAShip() {}
+  playerWins() {
+    const { playerWins } = this.#stateClassTags;
 
-  botsTurn() {}
+    this.#applyState(playerWins);
+  }
 
-  botWins() {}
+  playerSunkAShip() {
+    const { normal } = this.#stateClassTags;
 
-  botSunkAShip() {}
+    this.#applyState(normal);
+  }
+
+  botsTurn() {
+    const { botsTurn } = this.#stateClassTags;
+
+    this.#applyState(botsTurn);
+  }
+
+  botWins() {
+    const { botWins } = this.#stateClassTags;
+
+    this.#applyState(botWins);
+  }
+
+  botSunkAShip() {
+    const { normal } = this.#stateClassTags;
+
+    this.#applyState(normal);
+  }
 
   //sort of an intermediary state between either the player or the bot making a move
   //will set the style to default
-  updateAfterMove() {}
+  updateAfterMove() {
+    const { normal } = this.#stateClassTags;
+
+    this.#applyState(normal);
+  }
 
   //same thing, an intermediary state, most likely a default styling
-  currentlyPickingShips() {}
+  currentlyPickingShips() {
+    const { normal } = this.#stateClassTags;
+
+    this.#applyState(normal);
+  }
 
   //essentially will reset all event based styling to default
-  gameReset() {}
+  gameReset() {
+    const { normal } = this.#stateClassTags;
+
+    this.#applyState(normal);
+  }
 }
 
 //mainly to emit events corresponding to the UI button pressed
