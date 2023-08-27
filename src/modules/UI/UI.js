@@ -6,11 +6,15 @@ import { ElementRefManager } from "../LowLevelModules/Element-Ref-Manager";
 export class UI {
   constructor(elementRefManager) {
     try {
+      this.#helperClassInstances.argValidator.validate("constructor", {
+        elementRefManager,
+      });
+
       this.#helperClassInstances.elementRefManager = elementRefManager;
 
       this.#initHelperClassInstances();
-
       this.#linkControllerToHelperClassPublishers();
+      this.#retrieveUIFragmennt();
     } catch (error) {
       //ADD ERROR HANDLING METHOD HERE
     }
@@ -18,14 +22,36 @@ export class UI {
 
   //---------STATE-AND-CONFIG-DATA----------//
 
+  #argumentValidationRules = {
+    constructor: {
+      elementRefManager: {
+        instanceof: ElementRefManager,
+      },
+    },
+    subscribe: {
+      methodName: {
+        type: "string",
+      },
+      subscriberMethod: {
+        type: "function",
+      },
+    },
+    unsubscribe: {
+      methodName: {
+        type: "string",
+      },
+    },
+  };
+
   #helperClassInstances = {
+    argValidator: new ArgumentValidation(this.#argumentValidationRules),
     UIconstructor: null,
     UIfunctionality: null,
     UIstyler: null,
     elementRefManager: null,
   };
 
-  #currentGameState = null;
+  #UIFrag = null;
 
   //------------HELPER-METHODS--------------//
 
@@ -50,52 +76,126 @@ export class UI {
     );
   }
 
+  #retrieveUIFragmennt() {
+    const { UIConstructor } = this.#helperClassInstances;
+
+    this.#UIFrag = UIConstructor.returnElementFrag();
+  }
+
   //-----------UI-ACTION-PUB-SUB------------//
 
-  #emitButtonActionEventToSubscribers(event) {}
+  #emitButtonActionEventToSubscribers(event) {
+    try {
+      if (Object.keys(this.#subscribers).length > 0) {
+        for (let subscriber in this.#subscribers) {
+          this.#subscribers[subscriber](event);
+        }
+      }
+    } catch (error) {
+      //ADD ERROR HANDLING LOGIC HERE
+    }
+  }
 
   #subscribers = {};
 
   subscribe(methodName, subscriberMethod) {
     try {
+      const { argValidator } = this.#helperClassInstances;
+      argValidator.validate("subscribe", { methodName, subscriberMethod });
+
+      if (!(methodName in this.#subscribers)) {
+        this.#subscribers[methodName] = subscriberMethod;
+      } else {
+        throw new TypeError(
+          `Failed to add subscriber to UI Controller button event publisher, the supplied method name appears to already exist as a subscriber, received '${methodName}'`
+        );
+      }
     } catch (error) {
-      //ADD ERROR HANDLING METHOD HERE
+      //ADD ERROR HANDLING LOGIC HERE
     }
   }
 
   unsubscribe(methodName) {
     try {
+      const { argValidator } = this.#helperClassInstances;
+      argValidator.validate("unsubscribe", { methodName });
+
+      if (methodName in this.#subscribers) {
+        delete this.#subscribers[methodName];
+      } else {
+        throw new TypeError(
+          `Failed to remove subscriber from UI Controller button event publisher, the supplied method name appears to not exist as a subscriber, received '${methodName}'`
+        );
+      }
     } catch (error) {
-      //ADD ERROR HANDLING METHOD HERE
+      //ADD ERROR HANDLING LOGIC HERE
     }
   }
 
   //-----------------APIs-------------------//
 
   //for updating the background style to match the corresponding gamestate
-  playersTurn() {}
+  playersTurn() {
+    const { UIstyler } = this.#helperClassInstances;
 
-  playerWins() {}
+    UIstyler.playersTurn();
+  }
 
-  playerSunkAShip() {}
+  playerWins() {
+    const { UIstyler } = this.#helperClassInstances;
 
-  botsTurn() {}
+    UIstyler.playersWins();
+  }
 
-  botWins() {}
+  playerSunkAShip() {
+    const { UIstyler } = this.#helperClassInstances;
 
-  botSunkAShip() {}
+    UIstyler.playerSunkAShip();
+  }
+
+  botsTurn() {
+    const { UIstyler } = this.#helperClassInstances;
+
+    UIstyler.botsTurn();
+  }
+
+  botWins() {
+    const { UIstyler } = this.#helperClassInstances;
+
+    UIstyler.botWins();
+  }
+
+  botSunkAShip() {
+    const { UIstyler } = this.#helperClassInstances;
+
+    UIstyler.botSunkAShip();
+  }
 
   //sort of an intermediary state between either the player or the bot making a move
   //will set the style to default
-  updateAfterMove() {}
+  updateAfterMove() {
+    const { UIstyler } = this.#helperClassInstances;
+
+    UIstyler.updateAfterMove();
+  }
 
   //same thing, an intermediary state, most likely a default styling
-  currentlyPickingShips() {}
+  currentlyPickingShips() {
+    const { UIstyler } = this.#helperClassInstances;
+
+    UIstyler.currentlyPickingShips();
+  }
 
   //essentially will reset all event based styling to default
-  gameReset() {}
+  gameReset() {
+    const { UIstyler } = this.#helperClassInstances;
 
-  returnElementFrag() {}
+    UIstyler.gameReset();
+  }
+
+  returnElementFrag() {
+    return this.#UIFrag;
+  }
 }
 
 //creates the HTML structure
@@ -438,7 +538,7 @@ export class UIFunctionality {
   #initEventListeners() {
     const { mainContainer } = this.#neededElementRefs;
 
-    mainContainer.addEventListeners("click", (e) => {
+    mainContainer.addEventListener("click", (e) => {
       this.#buttonLogic(e);
     });
   }
@@ -497,7 +597,7 @@ export class UIFunctionality {
         this.#subscribers[methodName] = subscriberMethod;
       } else {
         throw new TypeError(
-          `Failed to add subscriber to UI button event publisher, the supplied method name appears to already exist as a subscriber, received '${methodName}'`
+          `Failed to add subscriber to UIFunctionality button event publisher, the supplied method name appears to already exist as a subscriber, received '${methodName}'`
         );
       }
     } catch (error) {
@@ -514,7 +614,7 @@ export class UIFunctionality {
         delete this.#subscribers[methodName];
       } else {
         throw new TypeError(
-          `Failed to remove subscriber from UI button event publisher, the supplied method name appears to not exist as a subscriber, received '${methodName}'`
+          `Failed to remove subscriber from UIFunctionality button event publisher, the supplied method name appears to not exist as a subscriber, received '${methodName}'`
         );
       }
     } catch (error) {
