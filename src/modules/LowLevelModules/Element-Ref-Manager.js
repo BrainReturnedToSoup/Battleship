@@ -8,36 +8,39 @@ export class ElementRefManager {
   #cacheManipulator(methodType, key, value) {
     const errors = [];
 
-    if (typeof key === "string") {
-      switch (methodType) {
-        case "set":
-          if (value instanceof Element) {
-            this.#cache.set(key, value);
-          } else {
-            errors.push(
-              new TypeError(
-                `Supplied value to be stored within the element cache manager is not an element, received '${value}' as the value corresponding to the supplied key '${key}'`
-              )
-            );
-          }
-        case "get":
-          return this.#cache.get(key);
-        case "delete":
-          this.#cache.delete(key);
-          break;
-        default:
-          errors.push(
-            new SyntaxError(
-              `Supplied 'methodType' argument value does not match any of the valid methods available to enact on the cache within '${this.constructor.name}', received '${methodType}' as the supplied method type`
-            )
-          );
-      }
-    } else {
+    if (typeof key !== "string") {
       errors.push(
         new TypeError(
           `Supplied 'key' argument value is an incorrect data type, must be a string, received '${key}'`
         )
       );
+    }
+
+    switch (methodType) {
+      case "set":
+        if (value instanceof Element) {
+          this.#cache.set(key, value);
+        } else {
+          errors.push(
+            new TypeError(
+              `Supplied value to be stored within the element cache manager is not an element, received '${value}' as the value corresponding to the supplied key '${key}'`
+            )
+          );
+        }
+
+      case "get":
+        return this.#cache.get(key);
+
+      case "delete":
+        this.#cache.delete(key);
+        break;
+
+      default:
+        errors.push(
+          new SyntaxError(
+            `Supplied 'methodType' argument value does not match any of the valid methods available to enact on the cache within '${this.constructor.name}', received '${methodType}' as the supplied method type`
+          )
+        );
     }
 
     this.#throwFoundErrors(errors);

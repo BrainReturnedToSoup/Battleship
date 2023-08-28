@@ -3,6 +3,8 @@ import { ErrorManager } from "../LowLevelModules/Error-Thrower";
 
 import { ElementRefManager } from "../LowLevelModules/Element-Ref-Manager";
 
+const errorManager = new ErrorManager();
+
 //creates the HTML structure
 export class UIConstructor {
   constructor(elementRefManager) {
@@ -15,7 +17,7 @@ export class UIConstructor {
 
       this.#buildFragment();
     } catch (error) {
-      //ADD ERROR HANDLING METHOD HERE
+      errorManager.normalThrow(error);
     }
   }
 
@@ -113,7 +115,7 @@ export class UIStyler {
 
       this.#retrieveElementRefs();
     } catch (error) {
-      //ADD ERROR HANDLING LOGIC HERE
+      errorManager.normalThrow(error);
     }
   }
 
@@ -260,7 +262,7 @@ export class UIFunctionality {
 
       this.#initEventListeners();
     } catch (error) {
-      //ADD ERROR HANDLING LOGIC HERE
+      errorManager.normalThrow(error);
     }
   }
 
@@ -346,7 +348,7 @@ export class UIFunctionality {
         }
       }
     } catch (error) {
-      //ADD ERROR HANDLING LOGIC HERE
+      errorManager.normalThrow(error);
     }
   }
 
@@ -365,7 +367,7 @@ export class UIFunctionality {
         );
       }
     } catch (error) {
-      //ADD ERROR HANDLING LOGIC HERE
+      errorManager.normalThrow(error);
     }
   }
 
@@ -382,7 +384,7 @@ export class UIFunctionality {
         );
       }
     } catch (error) {
-      //ADD ERROR HANDLING LOGIC HERE
+      errorManager.normalThrow(error);
     }
   }
 }
@@ -401,7 +403,7 @@ export class UI {
       this.#linkControllerToHelperClassPublishers();
       this.#retrieveUIFragmennt();
     } catch (error) {
-      //ADD ERROR HANDLING METHOD HERE
+      errorManager.normalThrow(error);
     }
   }
 
@@ -478,7 +480,7 @@ export class UI {
         }
       }
     } catch (error) {
-      //ADD ERROR HANDLING LOGIC HERE
+      errorManager.normalThrow(error);
     }
   }
 
@@ -497,7 +499,7 @@ export class UI {
         );
       }
     } catch (error) {
-      //ADD ERROR HANDLING LOGIC HERE
+      errorManager.normalThrow(error);
     }
   }
 
@@ -514,7 +516,7 @@ export class UI {
         );
       }
     } catch (error) {
-      //ADD ERROR HANDLING LOGIC HERE
+      errorManager.normalThrow(error);
     }
   }
 
