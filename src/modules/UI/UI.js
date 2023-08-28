@@ -1,5 +1,5 @@
 import { ArgumentValidation } from "../LowLevelModules/Argument-Validation";
-import { ErrorManager } from "../LowLevelModules/Error-Thrower";
+import { ErrorManager } from "../LowLevelModules/Error-Manager";
 
 import { ElementRefManager } from "../LowLevelModules/Element-Ref-Manager";
 
@@ -9,11 +9,11 @@ const errorManager = new ErrorManager();
 export class UIConstructor {
   constructor(elementRefManager) {
     try {
-      this.#helperClassInstance.argValidator.validate("constructor", {
+      this.#helperClassInstances.argValidator.validate("constructor", {
         elementRefManager,
       });
 
-      this.#helperClassInstance.elementRefManager = elementRefManager;
+      this.#helperClassInstances.elementRefManager = elementRefManager;
 
       this.#buildFragment();
     } catch (error) {
@@ -31,7 +31,7 @@ export class UIConstructor {
     },
   };
 
-  #helperClassInstance = {
+  #helperClassInstances = {
     argValidator: new ArgumentValidation(this.#argumentValidationRules),
     elementRefManager: null,
   };
@@ -41,7 +41,7 @@ export class UIConstructor {
   //--------------HELPER-METHODS--------------//
 
   #storeElementRef(refName, ref) {
-    const { elementRefManager } = this.#helperClassInstance;
+    const { elementRefManager } = this.#helperClassInstances;
 
     elementRefManager.addRef(refName, ref);
   }

@@ -1,10 +1,12 @@
-import { UI } from "./modules/UI/UI";
+import { GameStatePopUp } from "./modules/GameStatePopUp/GameStatePopUp";
 import { ElementRefManager } from "./modules/LowLevelModules/Element-Ref-Manager";
 
 const ERM = new ElementRefManager(),
-  UIinstance = new UI(ERM),
-  UIfrag = UIinstance.returnElementFrag();
+  GameStatePopUpInstance = new GameStatePopUp(ERM),
+  GSPUIfrag = GameStatePopUpInstance.returnElementFrag();
 
-UIinstance.gameReset();
+GameStatePopUpInstance.currentlyPickingShips();
 
-document.body.append(UIfrag);
+console.log(ERM);
+
+document.body.append(GSPUIfrag);

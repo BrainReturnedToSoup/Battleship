@@ -1,16 +1,23 @@
 import { UI } from "./UI/UI";
 import { Game } from "./Game";
-import { GameStatePopUp } from "./GameStatePopUp";
+import { GameStatePopUp } from "./GameStatePopUp/GameStatePopUp";
 
 import { ElementRefManager } from "./LowLevelModules/Element-Ref-Manager";
+import { ErrorManager } from "./LowLevelModules/Error-Manager";
+
+const errorManager = new ErrorManager();
 
 class Battleship {
   constructor() {
-    this.#initHelperClassInstances();
+    try {
+      this.#initHelperClassInstances();
 
-    this.#linkControllerToHelperClassPublishers();
+      this.#linkControllerToHelperClassPublishers();
 
-    this.#createGameInstance();
+      this.#createGameInstance();
+    } catch (error) {
+      errorManager.normalThrow(error);
+    }
   }
 
   //--------STATE-AND-CONFIG-DATA--------//
@@ -67,23 +74,25 @@ class Battleship {
   //-----------OBSERVER-BASED-FUNCTIONALITIES-----------//
 
   #listenForUIActions(action) {
-    this.#validUIActions[action]();
+    try {
+      this.#validUIActions[action]();
+    } catch (error) {
+      errorManager.normalThrow(error);
+    }
   }
 
   #validUIActions = {
-    pause: () => {
-      this.pauseCurrentGame();
-    },
-    resume: () => {
-      this.resumeCurrentGame();
-    },
     newGame: () => {
       this.newGame();
     },
   };
 
   #listenForGameState(event) {
-    this.#validGameStateEvents[event]();
+    try {
+      this.#validGameStateEvents[event]();
+    } catch (error) {
+      errorManager.normalThrow(error);
+    }
   }
 
   #validGameStateEvents = {
@@ -159,23 +168,15 @@ class Battleship {
 
   //-----------------APIs----------------//
 
-  pauseCurrentGame() {
-    const { game } = this.#helperClassInstances;
-
-    game.pause();
-  }
-
-  resumeCurrentGame() {
-    const { game } = this.#helperClassInstances;
-
-    game.resume();
-  }
-
   newGame() {
-    const { game } = this.#helperClassInstances;
+    try {
+      const { game } = this.#helperClassInstances;
 
-    //resets the game state and activates the screen to pick ship placements
-    game.reset();
-    game.pickShipPlacement();
+      //resets the game state and activates the screen to pick ship placements
+      game.reset();
+      game.pickShipPlacement();
+    } catch (error) {
+      errorManager.normalThrow(error);
+    }
   }
 }
