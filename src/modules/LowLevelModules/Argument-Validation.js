@@ -27,6 +27,25 @@ export class ArgumentValidation {
         );
       }
     },
+    isArray: (suppliedArg, argName, methodOrigin, correctInstance) => {
+      if (!(Array.isArray(suppliedArg) === correctInstance)) {
+        throw new Error(
+          `Argument '${argName}' for method '${methodOrigin}' failed instance validation,
+               received '${suppliedArg}' which is not an array'`
+        );
+      }
+    },
+    arrElementType: (suppliedArg, argName, methodOrigin, correctType) => {
+      for (let element of suppliedArg) {
+        if (typeof element !== correctType) {
+          throw new Error(
+            `Argument '${argName}' for method '${methodOrigin}' failed type validation,
+                received element '${element}' which has a type of '${typeof element}',
+                needs to have the type '${correctType}'`
+          );
+        }
+      }
+    },
   };
 
   #argValidator(methodName, argsObj) {

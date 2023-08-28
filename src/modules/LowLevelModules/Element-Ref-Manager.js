@@ -2,7 +2,7 @@ export class ElementRefManager {
   //acts as a means of managing all element references supplied to the class instance
   //highly reuseable as it can be applied to pretty much any front end feature
 
-  #cache = new Map();
+  #cache = new WeakMap(); //Use a weak map to enable garbage collection for deleted elements
 
   //will be what actually manipulates the cache based on the instructions given, also returns any errors that it comes across when doing so
   #cacheManipulator(methodType, key, value) {

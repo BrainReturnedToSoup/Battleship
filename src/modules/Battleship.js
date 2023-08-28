@@ -1,5 +1,5 @@
 import { UI } from "./UI/UI";
-import { Game } from "./Game";
+import { Game } from "./Game/Game";
 import { GameStatePopUp } from "./GameStatePopUp/GameStatePopUp";
 
 import { ElementRefManager } from "./LowLevelModules/Element-Ref-Manager";
