@@ -100,7 +100,7 @@ class Battleship {
     //due to the current game state
     //using the game state pop up instance and UI in some way
 
-    //********************MID*GAME*EVENTS********************//
+    //******************V**MID*GAME*EVENTS**V******************//
 
     playerWins: () => {
       const { ui, gameStatePopUp } = this.#helperClassInstances;
@@ -142,7 +142,7 @@ class Battleship {
       gameStatePopUp.botsTurn();
     },
 
-    //******************GENERAL*GAME*EVENTS*****************//
+    //****************V**GENERAL*GAME*EVENTS**V***************//
 
     inBetweenMoves: () => {
       const { ui, gameStatePopUp } = this.#helperClassInstances;

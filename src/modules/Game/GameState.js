@@ -26,9 +26,11 @@ class PlayerState {
         playerNum,
       });
 
-      this.#playerNum = playerNum;
+      this.#playerGameState.playerNum = playerNum;
 
       this.#buildBoard();
+
+      this.#buildMadeAttacksBoard();
     } catch (error) {
       errorManager.normalThrow(error);
     }
@@ -42,140 +44,265 @@ class PlayerState {
         type: "string",
       },
     },
+    addShipToBoard: {
+      shipLength: {},
+      originCoord: {},
+      axis: {},
+    },
+    attackPlayer: {},
   };
 
   #helperClassInstances = {
     argValidator: new ArgumentValidation(this.#argumentValidationRules),
   };
 
-  #playerNum = null;
+  #boardDimensions = {
+    rows: 10,
+    columns: 10,
+  };
 
-  #gameState = {
-    playerBoard: null,
-    playerShips: null,
+  #playerGameState = {
+    playerNum: null,
+    mainBoard: null,
+    madeAttacksBoard: null,
+    totalHealth: 0,
   };
 
   //---------HELPER-METHODS---------//
 
-  #buildBoard() {}
+  #buildBoard() {
+    const newBoard = [],
+      { rows } = this.#boardDimensions;
+
+    for (let i = 0; i < rows; i++) {
+      const newRow = this.#buildRow();
+
+      newBoard.push(newRow);
+    }
+
+    this.#playerGameState.mainBoard = newBoard;
+  }
+
+  #buildMadeAttacksBoard() {
+    const newBoard = [],
+      { rows } = this.#boardDimensions;
+
+    for (let i = 0; i < rows; i++) {
+      const newRow = this.#buildRow();
+
+      newBoard.push(newRow);
+    }
+
+    this.#playerGameState.madeAttacksBoard = newBoard;
+  }
+
+  #buildRow() {
+    const newRow = [],
+      { columns } = this.#boardDimensions;
+
+    for (let i = 0; i < columns; i++) {
+      newRow.push("-");
+    }
+
+    return newRow;
+  }
+
+  //----------SHIP-PLACEMENT--------//
+
+  //should either return an of the placement coords if valid, or null/undefined if
+  //not valid
+  #determinePlacementLegibility(shipLength, originCoord, axis) {
+    //should check the possible mapping on the player board given the args
+    const { mainBoard } = this.#playerGameState,
+      coordsListObj = this.#returnCoordsList(
+        shipLength,
+        originCoord,
+        axis,
+        mainBoard
+      );
+
+    //all values have to be equal to "-" in order to be a valid placement
+    for (let i = 0; i < coordsListObj.values.length; i++) {
+      if (coordsListObj.values[i] !== "-") {
+        return null;
+      }
+    }
+
+    return coordsListObj.coords;
+  }
+
+  #addShip(placementCoords) {
+    //should include the mapping of the ship on the player board
+
+    for (let i = 0; i < placementCoords.length; i++) {
+      const row = placementCoords[0],
+        column = placementCoords[1];
+
+      //turn the respective coordinates equal to a ship tile, and add a health point per added tile
+      this.#playerGameState.mainBoard[row][column] = "Ship";
+      this.#playerGameState.totalHealth++;
+    }
+  }
+
+  //------APPLY-DAMAGE-TO-BOARD-----//
+
+  #determineAttackLegibility(gridCoord) {
+    //should check the possibility of making the given attack, both in terms of such being within the board
+    //and not being an attack already made
+  }
+
+  #reflectAttackInState(gridCoord) {
+    //make the attack essentially, which entails making the change to the state properties
+  }
+
+  //---------COORDS-RETRIEVAL-------//
+
+  #returnCoordsList(length, originCoord, axis, suppliedMatrix) {
+    const coordsList = {
+      coords: [],
+      values: [],
+    };
+
+    let row = originCoord[0],
+      column = originCoord[1];
+
+    for (let i = 0; i < length; i++) {
+      if (axis === "Vertical") {
+        row++;
+
+        const derivedCoord = [row, column],
+          corresValue = suppliedMatrix[row][column];
+
+        coordsList.coords.push(derivedCoord);
+        coordsList.values.push(corresValue);
+      } else if (axis === "Horizontal") {
+        column++;
+
+        const derivedCoord = [row, column],
+          corresValue = suppliedMatrix[row][column];
+
+        coordsList.coords.push(derivedCoord);
+        coordsList.values.push(corresValue);
+      } else {
+        throw new ReferenceError(
+          `Failed to return a coordinate list object, the supplied axis to traverse is not valid, should either equal "Vertical" or "Horizontal", received "${axis}"`
+        );
+      }
+    }
+
+    return coordsList;
+  }
 
   //-------PLAYER-STATE-PUB-SUB-----//
 
-  //--------------APIs--------------//
-}
+  #emitPlayerStateToSubscribers() {
+    if (Object.keys(this.#subscribers).length > 0) {
+      for (let subscriber in this.#subscribers) {
+        this.#subscribers[subscriber](this.#playerGameState);
+      }
+    }
+  }
 
-class Ship {
-  constructor(shipLength, gridCoordsArr) {
+  #subscribers = {};
+
+  subscribe(methodName, subscriberMethod) {
     try {
-      this.#helperClassInstances.argValidator.validate("constructor", {
-        shipLength,
-        gridCoordsArr,
-      });
+      const { argValidator } = this.#helperClassInstances;
+      argValidator.validate("subscribe", { methodName, subscriberMethod });
 
-      this.#initShipProperties(shipLength, gridCoordsArr);
+      if (!(methodName in this.#subscribers)) {
+        this.#subscribers[methodName] = subscriberMethod;
+      } else {
+        throw new TypeError(
+          `Failed to add subscriber to UI Controller button event publisher, the supplied method name appears to already exist as a subscriber, received '${methodName}'`
+        );
+      }
     } catch (error) {
       errorManager.normalThrow(error);
     }
   }
 
-  //------STATE-AND-CONFIG-DATA-----//
+  unsubscribe(methodName) {
+    try {
+      const { argValidator } = this.#helperClassInstances;
+      argValidator.validate("unsubscribe", { methodName });
 
-  #argumentValidationRules = {
-    constructor: {
-      shipLength: {
-        type: "number",
-      },
-      gridCoordsArr: {
-        isArray: true,
-        arrElementType: "object",
-      },
-    },
-    damageShip: {
-      gridCoord: {
-        isArray: true,
-        arrElementType: "number",
-      },
-    },
-  };
+      if (methodName in this.#subscribers) {
+        delete this.#subscribers[methodName];
+      } else {
+        throw new TypeError(
+          `Failed to remove subscriber from UI Controller button event publisher, the supplied method name appears to not exist as a subscriber, received '${methodName}'`
+        );
+      }
+    } catch (error) {
+      errorManager.normalThrow(error);
+    }
+  }
 
-  #helperClassInstances = {
-    argValidator: new ArgumentValidation(this.#argumentValidationRules),
-  };
+  //--------------APIs--------------//
 
-  #shipSectionArr = null;
+  //resets the player state for situations such as starting a new game
+  resetState() {
+    try {
+      this.#buildBoard();
+      this.#buildMadeAttacksBoard();
 
-  #shipHealth = null;
+      this.#playerGameState.totalHealth = 0;
 
-  #correspondingCoords = null;
+      this.#emitPlayerStateToSubscribers();
+    } catch (error) {
+      errorManager.normalThrow(error);
+    }
+  }
 
-  //---------HELPER-METHODS---------//
+  //takes the ships length, the origin to start at for placement, and the axis
+  //in order to determine the orrientation of the ship, vertical or horizontal.
 
-  #initShipProperties(shipLength, gridCoordsArr) {}
+  //the ship should either point down or to the right from the origin
+  addShipToBoard(shipLength, originCoord, axis) {
+    try {
+      this.#helperClassInstances.argValidator.validate("addShipToBoard", {
+        shipLength,
+        originCoord,
+        axis,
+      });
 
-  #findCorrespondingShipSection(gridCoord) {
-    for (let i = 0; i < this.#correspondingCoords; i++) {
-      const isMatchingCoord = this.#checkCoord(
-        this.#correspondingCoords[i],
-        gridCoords
+      const placementCoords = this.#determinePlacementLegibility(
+        shipLength,
+        originCoord,
+        axis
       );
 
-      if (isMatchingCoord) {
-        return i;
-      }
-    }
+      if (placementCoords !== null) {
+        this.#addShip(placementCoords);
 
-    return null;
-  }
-
-  #checkCoord(currCoord, suppliedCoord) {
-    let matchingCoord = true;
-
-    for (let element in currCoord) {
-      if (currCoord[element] !== suppliedCoord[element]) {
-        matchingCoord = false;
-        break;
-      }
-    }
-
-    return matchingCoord;
-  }
-
-  #applyDamage(shipSectionIndex) {
-    if (this.#shipSectionArr[shipSectionIndex] === "-") {
-      this.#shipSectionArr[shipSectionIndex] = "X";
-      this.#shipHealth--;
-    }
-  }
-
-  //--------------APIs--------------//
-
-  //uses supplied grid coords in order to compare which portion of the ship
-  //was hit, and apply the damage to the specific section that the ship exists
-  //in, in relation to the grid itself.
-  damageShip(gridCoord) {
-    try {
-      this.#helperClassInstances.argValidator.validate("damageShip", {
-        gridCoord,
-      });
-
-      const shipSectionIndex = this.#findCorrespondingShipSection(gridCoord);
-
-      if (shipSectionIndex !== null) {
-        this.#applyDamage(shipSectionIndex);
+        this.#emitPlayerStateToSubscribers();
       } else {
-        throw new Error(`Failed to damage ship, as the supplied grid coordinate does not match any
-         of the corresponding ship coordinates, received ${gridCoord} as the supplied grid coordinate`);
+        throw new Error(`Failed to add ship to board, the supplied parameters provided an invalid
+         placement of some sort, this includes a ship that may fall off the board,
+          or perhaps a ship that intersects another ship`);
       }
     } catch (error) {
       errorManager.normalThrow(error);
     }
   }
 
-  //returns data on the current state of the ship for any type of use
-  currentState() {
-    return {
-      shipSections: this.#shipSectionArr,
-      shipHealth: this.#shipHealth,
-    };
+  attackPlayer(gridCoord) {
+    try {
+      const isValidAttack = this.#determineAttackLegibility(gridCoord);
+
+      if (isValidAttack) {
+        this.#reflectAttackInState(gridCoord);
+
+        this.#emitPlayerStateToSubscribers();
+      } else {
+        return null;
+        //this is so the game state can emit its own event based on an invalid move
+        //for instance, if the move is something already made, the state will emit a 'try again' type
+        //of event
+      }
+    } catch (error) {
+      errorManager.normalThrow(error);
+    }
   }
 }
