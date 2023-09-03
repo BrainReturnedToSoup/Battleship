@@ -1,5 +1,6 @@
 import { ArgumentValidation } from "../LowLevelModules/Argument-Validation";
 import { ErrorManager } from "../LowLevelModules/Error-Manager";
+import { Publisher } from "../LowLevelModules/Publisher";
 
 import lodash from "lodash";
 
@@ -12,6 +13,8 @@ const errorManager = new ErrorManager();
 class GameState {
   constructor() {
     try {
+      this.#initPublisherInstances();
+
       this.#linkControllerToPlayerStatePublishers();
     } catch (error) {
       errorManager.normalThrow(error);
@@ -24,6 +27,7 @@ class GameState {
 
   #helperClassInstances = {
     argValidator: new ArgumentValidation(this.#argumentValidationRules),
+    publisher: new Publisher(),
   };
 
   #playerStates = {
@@ -38,19 +42,20 @@ class GameState {
 
   //--------HELPER-METHODS---------//
 
+  #initPublisherInstances() {
+    const { publisher } = this.#helperClassInstances;
+
+    publisher.addPublisherInstance("Player 1 State");
+    publisher.addPublisherInstance("Player 2 State");
+    publisher.addPublisherInstance("Game State");
+  }
+
   #linkControllerToPlayerStatePublishers() {
     const { player1, player2 } = this.#playerStates,
-      classScope = this;
+      { publisher } = this.#helperClassInstances;
 
-    player1.subscribe(
-      "GameState",
-      this.#emitPlayer1StateToSubscribers.bind(classScope)
-    );
-
-    player2.subscribe(
-      "GameState",
-      this.#emitPlayer2StateToSubscribers.bind(classScope)
-    );
+    player1.subscribe("Player State", publisher.emitData.bind(publisher));
+    player2.subscribe("Player State", publisher.emitData.bind(publisher));
   }
 
   //-----GAME-STATE-MANAGEMENT-----//
@@ -58,127 +63,48 @@ class GameState {
   //------GAME-STATE-PUB-SUB-------//
 
   #emitGameStateToSubscribers() {
-    if (Object.keys(this.#gameStateSubscribers).length > 0) {
-      const gameStateCopy = lodash.cloneDeep(this.#gameState);
+    const { publisher } = this.#helperClassInstances,
+      gameStateClone = lodash.cloneDeep(this.#gameState);
 
-      for (let subscriber in this.#gameStateSubscribers) {
-        this.#gameStateSubscribers[subscriber](gameStateCopy);
-      }
-    }
+    publisher.emitData("Game State", gameStateClone);
   }
 
-  #gameStateSubscribers = {};
-
   subscribeToGameState(methodName, subscriberMethod) {
-    try {
-      if (!(methodName in this.#gameStateSubscribers)) {
-        this.#gameStateSubscribers[methodName] = subscriberMethod;
-      } else {
-        throw new TypeError(
-          `Failed to add subscriber to a game state event publisher, the supplied method name appears to already exist as a subscriber, received '${methodName}'`
-        );
-      }
-    } catch (error) {
-      errorManager.normalThrow(error);
-    }
+    const { publisher } = this.#helperClassInstances;
+
+    publisher.subscribe("Game State", methodName, subscriberMethod);
   }
 
   unsubscribeFromGameState(methodName) {
-    try {
-      if (methodName in this.#gameStateSubscribers) {
-        delete this.#gameStateSubscribers[methodName];
-      } else {
-        throw new TypeError(
-          `Failed to remove subscriber from a game state event publisher, the supplied method name appears to not exist as a subscriber, received '${methodName}'`
-        );
-      }
-    } catch (error) {
-      errorManager.normalThrow(error);
-    }
+    const { publisher } = this.#helperClassInstances;
+
+    publisher.unsubscribe("Game State", methodName);
   }
 
   //-----PLAYER-STATE-PUB-SUB------//
 
   #emitPlayer1StateToSubscribers(state) {
-    if (Object.keys(this.#player1StateSubscribers).length > 0) {
-      //should already be a deep clone from the player instance
+    const { publisher } = this.#helperClassInstances;
 
-      for (let subscriber in this.#player1StateSubscribers) {
-        this.#player1StateSubscribers[subscriber](state);
-      }
-    }
+    publisher.emitData("Player 1 State", state);
   }
 
   #emitPlayer2StateToSubscribers(state) {
-    if (Object.keys(this.#player2StateSubscribers).length > 0) {
-      //should already be a deep clone from the player instance
+    const { publisher } = this.#helperClassInstances;
 
-      for (let subscriber in this.#player2StateSubscribers) {
-        this.#player2StateSubscribers[subscriber](state);
-      }
-    }
+    publisher.emitData("Player 2 State", state);
   }
 
-  #player1StateSubscribers = {};
+  subscribeToPlayerState(playerStateName, methodName, subscriberMethod) {
+    const { publisher } = this.#helperClassInstances;
 
-  #player2StateSubscribers = {};
-
-  #determineSelectedPlayer(player) {
-    if (player === "Player 1") {
-      return this.#player1StateSubscribers;
-    } else if (player === "Player 2") {
-      return this.#player2StateSubscribers;
-    }
-
-    throw new ReferenceError(
-      `Failed to add subscriber to a player state publisher, the supplied player value is not valid, should be equal to either 'Player 1' or 'Player 2', received '${player}'`
-    );
+    publisher.subscribe(playerStateName, methodName, subscriberMethod);
   }
 
-  subscribeToPlayerState(player, methodName, subscriberMethod) {
-    try {
-      const { argValidator } = this.#helperClassInstances;
-      argValidator.validate("subscribe", {
-        player,
-        methodName,
-        subscriberMethod,
-      });
+  unsubscribeFromPlayerState(playerStateName, methodName) {
+    const { publisher } = this.#helperClassInstances;
 
-      //determine which subscriber pool to target
-      const subscribers = this.#determineSelectedPlayer(player);
-
-      //add the entrypoint to the corresponding object
-      if (!(methodName in subscribers)) {
-        subscribers[methodName] = subscriberMethod;
-      } else {
-        throw new TypeError(
-          `Failed to add subscriber to a player state event publisher, the supplied method name appears to already exist as a subscriber, received '${methodName}' for '${player}'`
-        );
-      }
-    } catch (error) {
-      errorManager.normalThrow(error);
-    }
-  }
-
-  unsubscribeFromPlayerState(player, methodName) {
-    try {
-      const { argValidator } = this.#helperClassInstances;
-      argValidator.validate("unsubscribe", { player, methodName });
-
-      //determine which subscriber pool to target
-      const subscribers = this.#determineSelectedPlayer(player);
-
-      //delete the subscriber if such exists as a subscriber
-      if (methodName in subscribers) {
-        delete subscribers[methodName];
-      } else {
-        throw new TypeError(
-          `Failed to remove subscriber from a player state event publisher, the supplied method name appears to not exist as a subscriber, received '${methodName}' for '${player}'`
-        );
-      }
-    } catch (error) {
-      errorManager.normalThrow(error);
-    }
+    publisher.unsubscribe(playerStateName, methodName);
   }
 
   //-------------APIs--------------//
@@ -225,6 +151,8 @@ class PlayerState {
       this.#helperClassInstances.argValidator.validate("constructor", {
         playerNum,
       });
+
+      this.#initPublisherInstance();
 
       this.#playerGameState.playerNum = playerNum;
 
@@ -279,6 +207,7 @@ class PlayerState {
 
   #helperClassInstances = {
     argValidator: new ArgumentValidation(this.#argumentValidationRules),
+    publisher: new Publisher(),
   };
 
   #boardDimensions = {
@@ -294,6 +223,12 @@ class PlayerState {
   };
 
   //---------HELPER-METHODS---------//
+
+  #initPublisherInstance() {
+    const { publisher } = this.#helperClassInstances;
+
+    publisher.addPublisherInstance("Player State");
+  }
 
   #buildBoard() {
     const newBoard = [],
@@ -440,52 +375,26 @@ class PlayerState {
   //-------PLAYER-STATE-PUB-SUB-----//
 
   #emitPlayerStateToSubscribers() {
-    if (Object.keys(this.#subscribers).length > 0) {
-      const playerGameStateCopy = lodash.cloneDeep(this.#playerGameState);
-      //have to use the lodash library because making a deep clone on a complex object
-      //is a pain in the ass. Also making a deep clone is important, as you don't want
-      //the subscribers having an actual reference to the state, just a copy
+    const { publisher } = this.#helperClassInstances,
+      playerStateCopy = lodash.cloneDeep(this.#playerGameState);
 
-      for (let subscriber in this.#subscribers) {
-        this.#subscribers[subscriber](playerGameStateCopy);
-      }
-    }
+    publisher.emitData("Player State", playerStateCopy);
   }
 
-  #subscribers = {};
-
   subscribe(methodName, subscriberMethod) {
-    try {
-      const { argValidator } = this.#helperClassInstances;
-      argValidator.validate("subscribe", { methodName, subscriberMethod });
+    const { publisher, argValidator } = this.#helperClassInstances;
 
-      if (!(methodName in this.#subscribers)) {
-        this.#subscribers[methodName] = subscriberMethod;
-      } else {
-        throw new TypeError(
-          `Failed to add subscriber to UI Controller button event publisher, the supplied method name appears to already exist as a subscriber, received '${methodName}'`
-        );
-      }
-    } catch (error) {
-      errorManager.normalThrow(error);
-    }
+    argValidator.validate("subscribe", { methodName, subscriberMethod });
+
+    publisher.subscribe("Player State", methodName, subscriberMethod);
   }
 
   unsubscribe(methodName) {
-    try {
-      const { argValidator } = this.#helperClassInstances;
-      argValidator.validate("unsubscribe", { methodName });
+    const { publisher, argValidator } = this.#helperClassInstances;
 
-      if (methodName in this.#subscribers) {
-        delete this.#subscribers[methodName];
-      } else {
-        throw new TypeError(
-          `Failed to remove subscriber from UI Controller button event publisher, the supplied method name appears to not exist as a subscriber, received '${methodName}'`
-        );
-      }
-    } catch (error) {
-      errorManager.normalThrow(error);
-    }
+    argValidator.validate("unsubscribe", { methodName });
+
+    publisher.unsubscribe("Player State", methodName);
   }
 
   //--------------APIs--------------//
