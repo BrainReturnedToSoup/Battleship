@@ -46,6 +46,15 @@ export class ArgumentValidation {
         }
       }
     },
+    validValues: (suppliedArg, argName, methodOrigin, validValues) => {
+      if (!validValues.includes(suppliedArg)) {
+        throw new Error(
+          `Argument '${argName}' for method '${methodOrigin}' failed type validation,
+          received '${suppliedArg}' for '${argName}' which does not equal one of the supplied valid values
+          for the argument, valid argument values include '${validValues}'`
+        );
+      }
+    },
   };
 
   #argValidator(methodName, argsObj) {
