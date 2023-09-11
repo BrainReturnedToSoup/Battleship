@@ -10,7 +10,7 @@ const errorManager = new ErrorManager();
 //to interact with the game state. Also holds data for things that aren't directly
 //related to the individual players, for instance, for transitioning the grid being displayed
 //or perhaps limiting the ability to make a move to the other board after one has been made.
-class GameState {
+export class GameState {
   constructor() {
     try {
       this.#initGameStatePublisherInstances();
@@ -22,31 +22,6 @@ class GameState {
   }
 
   //-----STATE-AND-CONFIG-DATA-----//
-
-  #argumentValidationRules = {};
-
-  #helperClassInstances = {
-    argValidator: new ArgumentValidation(this.#argumentValidationRules),
-    publisher: new Publisher(),
-  };
-
-  #playerStateInstances = {
-    player1: new PlayerState(1),
-    player2: new PlayerState(2),
-  };
-
-  // current = [ RESET, PICKING, GAME ]
-  // whosTurn = [ Player 1, Player 2 ]
-  #helperStateInstances = {
-    shipPlacement: new ShipPlacementState(
-      this.#playerStateInstances.player1,
-      this.#playerStateInstances.player2
-    ),
-    match: new BattleState(
-      this.#playerStateInstances.player1,
-      this.#playerStateInstances.player2
-    ),
-  };
 
   #stateData = {
     currentState: null,
@@ -66,6 +41,77 @@ class GameState {
     "Game State",
   ];
 
+  #playerStateInstances = {
+    player1: new PlayerState(1),
+    player2: new PlayerState(2),
+  };
+
+  #argumentValidationRules = {
+    attackPlayer: {
+      playerName: {
+        type: "string",
+        validValues: Object.keys(this.#playerStateInstances),
+      },
+      targetCoord: {
+        isArray: true,
+        arrElementType: "number",
+      },
+    },
+    placeAShip: {
+      playerName: {
+        type: "string",
+        validValues: Object.keys(this.#playerStateInstances),
+      },
+      originCoord: {
+        isArray: true,
+        arrElementType: "number",
+      },
+      axis: {
+        type: "string",
+        validValues: ["Vertical", "Horizontal"],
+      },
+    },
+    subscribe: {
+      publisherName: {
+        type: "string",
+        validValues: Object.keys(this.#publisherInstanceNames),
+      },
+      methodName: {
+        type: "string",
+      },
+      entrypointMethod: {
+        type: "function",
+      },
+    },
+    unsubscribe: {
+      publisherName: {
+        type: "string",
+        validValues: Object.keys(this.#publisherInstanceNames),
+      },
+      methodName: {
+        type: "string",
+      },
+    },
+  };
+
+  #helperClassInstances = {
+    argValidator: new ArgumentValidation(this.#argumentValidationRules),
+    publisher: new Publisher(),
+  };
+
+  // current = [ RESET, PICKING, GAME ]
+  // whosTurn = [ Player 1, Player 2 ]
+  #helperStateInstances = {
+    shipPlacement: new ShipPlacementState(
+      this.#playerStateInstances.player1,
+      this.#playerStateInstances.player2
+    ),
+    match: new BattleState(
+      this.#playerStateInstances.player1,
+      this.#playerStateInstances.player2
+    ),
+  };
+
   //--------HELPER-METHODS---------//
 
   #initGameStatePublisherInstances() {
@@ -79,25 +125,24 @@ class GameState {
   #linkControllerToHelperStatePublishers() {
     const { player1, player2 } = this.#playerStateInstances,
       { shipPlacement, match } = this.#helperStateInstances,
-      gameStateIdentifier = "Game State",
-      classScope = this;
-
-    shipPlacement.subscribe(
-      gameStateIdentifier,
-      this.#processShipPlacementStateData.bind(classScope)
-    );
-    match.subscribe(
-      gameStateIdentifier,
-      this.#processMatchStateData.bind(classScope)
-    );
+      gameStateIdentifier = "Game State";
 
     player1.subscribe(
       gameStateIdentifier,
-      this.#processPlayer1StateData.bind(classScope)
+      this.#processPlayer1StateData.bind(this)
     );
     player2.subscribe(
       gameStateIdentifier,
-      this.#processPlayer2StateData.bind(classScope)
+      this.#processPlayer2StateData.bind(this)
+    );
+
+    shipPlacement.subscribe(
+      gameStateIdentifier,
+      this.#processShipPlacementStateData.bind(this)
+    );
+    match.subscribe(
+      gameStateIdentifier,
+      this.#processMatchStateData.bind(this)
     );
   }
 
@@ -108,7 +153,7 @@ class GameState {
     //if the game state allows attacks, that being the match state, attempt to make an attack
 
     if (this.#stateData.currentState !== this.#possibleCurrentStates[1]) {
-      throw new Error(`Failed to apply a ship placement in the game state,
+      throw new Error(`Failed to apply an attack in the game state,
       as the current game state does not match the state of being mid match`);
     }
 
@@ -146,7 +191,12 @@ class GameState {
     this.#stateData.currentState = this.#possibleCurrentStates[3];
   }
 
-  #resetGameStateData() {}
+  #resetGameStateData() {
+    this.#stateData.currentState = this.#possibleCurrentStates[2];
+
+    this.#stateData.finishedStateStatus.shipPlacement = false;
+    this.#stateData.finishedStateStatus.match = false;
+  }
 
   //-------STATE-PROCESSING--------//
 
@@ -251,10 +301,10 @@ class GameState {
   //themselves and interact with the game state instance in order to for instance place ships
   //or perhaps make an attack. The player arg is who is invoking the method
   //not the target player
-  placeAShip(player, originCoord, axis) {
+  placeAShip(playerName, originCoord, axis) {
     try {
       const { argValidator } = this.#helperClassInstances;
-      argValidator.validate("placeAShip", { player, originCoord, axis });
+      argValidator.validate("placeAShip", { playerName, originCoord, axis });
 
       this.#applyShipPlacement(player, originCoord, axis);
     } catch (error) {
@@ -265,10 +315,10 @@ class GameState {
   //another api that works based on the emitted game state letting other parts of the app
   //know this method is available for interaction. The player arg is who is invoking the method
   //not the target player
-  attackPlayer(player, targetCoord) {
+  attackPlayer(playerName, targetCoord) {
     try {
       const { argValidator } = this.#helperClassInstances;
-      argValidator.validate("attackPlayer", { player, targetCoord });
+      argValidator.validate("attackPlayer", { playerName, targetCoord });
 
       this.#applyAttack(player, targetCoord);
     } catch (error) {
@@ -338,7 +388,6 @@ class GameState {
       this.#stateData.finishedStateStatus.shipPlacement = true;
 
       this.#stateData.currentState = this.#possibleCurrentStates[1];
-
       match.beginMatch();
     } catch (error) {
       errorManager.normalThrow(error);
@@ -564,7 +613,17 @@ export class BattleState {
 
   //-------------APIs--------------//
 
-  resetState() {}
+  resetState() {
+    this.#stateData.currentState = false;
+    this.#stateData.finished = false;
+
+    this.#stateData.whosTurn = null;
+
+    this.#stateData.player1Health = null;
+    this.#stateData.player2Health = null;
+
+    this.#stateData.winner = null;
+  }
 
   attackPlayer(player, targetCoord) {
     try {
@@ -801,7 +860,23 @@ export class ShipPlacementState {
 
   //-------------APIs--------------//
 
-  resetState() {}
+  // #stateData = {
+  //   currentState: false,
+  //   finished: false,
+  //   numOfShips: {
+  //     player1: 0,
+  //     player2: 0,
+  //   },
+  //   shipLengths: [5, 4, 3, 3, 2],
+  // };
+
+  resetState() {
+    this.#stateData.currentState = false;
+    this.#stateData.finished = false;
+
+    this.#stateData.numOfShips.player1 = 0;
+    this.#stateData.numOfShips.player2 = 0;
+  }
 
   //allows ship placements for either player, in which each player only gets five ships,
   //in which the ships are in order from longest to shortest when considering which one to place
