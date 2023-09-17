@@ -22,7 +22,7 @@ export class GameBoardContructor {
 
       this.#helperClassInstances.elementRefManager = elementRefManager;
 
-      this.#buildCompleteGameBoardFragment();
+      this.#buildCompleteBattleBoardFragment();
     } catch (error) {
       errorManager.normalThrow(error);
     }
@@ -45,7 +45,7 @@ export class GameBoardContructor {
 
   #numOfGridCellsPerBoard = 100;
 
-  #completeGameBoardFrag = null;
+  #completeBattleBoardFrag = null;
 
   //-----------HELPER-METHODS-----------//
 
@@ -72,7 +72,7 @@ export class GameBoardContructor {
 
   //-------FRAGMENT-CONSTRUCTION--------//
 
-  #buildCompleteGameBoardFragment() {
+  #buildCompleteBattleBoardFragment() {
     const { gameContainer } = this.#elementTemplates;
 
     const range = document.createRange(),
@@ -90,7 +90,7 @@ export class GameBoardContructor {
     mainContainerElement.appendChild(playerOneBoard);
     mainContainerElement.appendChild(playerTwoBoard);
 
-    this.#completeGameBoardFrag = mainContainerElement;
+    this.#completeBattleBoardFrag = mainContainerElement;
   }
 
   #buildPlayerBoard(playerNum) {
@@ -165,49 +165,21 @@ export class GameBoardContructor {
   //----------------APIs----------------//
 
   returnElementFrag() {
-    return this.#completeGameBoardFrag;
+    return this.#completeBattleBoardFrag;
   }
 }
 
-//deals with styling the various squares according to
-//what the game state dictates, this includes hovering over squares,
-//making an attack, making a hit, representative for both sides
-class GameBoardStyler {
-  constructor(elementRefManager) {
-    try {
-      this.#helperClassInstances.argValidator.validate("constructor", {
-        elementRefManager,
-      });
+//deals with all styling with the game boards, both sides
+//includes both auto processing and manual overrides when it comes to
+//styling. The auto processing uses received game states in order to reflect
+//stylings. Some manual overrides for styling exists, but they will be used by other
+//parts of the application to use.
 
-      this.#helperClassInstances.elementRefManager = elementRefManager;
-    } catch (error) {
-      errorManager.normalThrow(error);
-    }
-  }
-
-  //-------STATE-AND-CONFIG-DATA--------//
-
-  #argumentValidationRules = {
-    constructor: {
-      elementRefManager: {
-        instanceof: ElementRefManager,
-      },
-    },
-  };
-
-  #helperClassInstances = {
-    argValidator: new ArgumentValidation(this.#argumentValidationRules),
-    elementRefManager: null,
-  };
-
-  //----------HELPER-METHODS------------//
-}
 
 //deals with the functionality of interacting with the actual game by emitting square clicks
 //should keep a tab on the state of the game regarding the current turn, who wins or losses,
 //etc, so that the user for instance cannot click on the board unless it's their turn
 class GameBoardFunctionality {}
-
 
 //represents the entire game, should include all that is needed when it comes to facilitating
 //the game, as well as the AI opponent as an instance that interacts with the game state

@@ -74,7 +74,7 @@ export class GameState {
     subscribe: {
       publisherName: {
         type: "string",
-        validValues: Object.keys(this.#publisherInstanceNames),
+        validValues: this.#publisherInstanceNames,
       },
       methodName: {
         type: "string",
@@ -86,7 +86,7 @@ export class GameState {
     unsubscribe: {
       publisherName: {
         type: "string",
-        validValues: Object.keys(this.#publisherInstanceNames),
+        validValues: this.#publisherInstanceNames,
       },
       methodName: {
         type: "string",
@@ -189,6 +189,8 @@ export class GameState {
 
     this.#stateData.finishedStateStatus.match = true;
     this.#stateData.currentState = this.#possibleCurrentStates[3];
+
+    this.#emitGameStateData();
   }
 
   #resetGameStateData() {
@@ -208,17 +210,17 @@ export class GameState {
   #processMatchStateData(state) {
     if (state.currentState && state.finished) {
       this.#matchFinished();
+    } else {
+      this.#emitMatchStateData(state);
     }
-
-    this.#emitMatchStateData(state);
   }
 
   #processShipPlacementStateData(state) {
     if (state.currentState && state.finished) {
       this.#shipPlacementsFinished();
+    } else {
+      this.#emitShipPickingStateData(state);
     }
-
-    this.#emitShipPickingStateData(state);
   }
 
   #processPlayer1StateData(state) {
@@ -269,16 +271,16 @@ export class GameState {
 
   //should validate for specific publisher names that exist
 
-  subscribe(publisherName, methodName, subscriberMethod) {
+  subscribe(publisherName, methodName, entrypointMethod) {
     const { publisher, argValidator } = this.#helperClassInstances;
 
     argValidator.validate("subscribe", {
       publisherName,
       methodName,
-      subscriberMethod,
+      entrypointMethod,
     });
 
-    publisher.subscribe(publisherName, methodName, subscriberMethod);
+    publisher.subscribe(publisherName, methodName, entrypointMethod);
   }
 
   unsubscribe(publisherName, methodName) {
@@ -306,7 +308,7 @@ export class GameState {
       const { argValidator } = this.#helperClassInstances;
       argValidator.validate("placeAShip", { playerName, originCoord, axis });
 
-      this.#applyShipPlacement(player, originCoord, axis);
+      this.#applyShipPlacement(playerName, originCoord, axis);
     } catch (error) {
       errorManager.normalThrow(error);
     }
@@ -320,7 +322,7 @@ export class GameState {
       const { argValidator } = this.#helperClassInstances;
       argValidator.validate("attackPlayer", { playerName, targetCoord });
 
-      this.#applyAttack(player, targetCoord);
+      this.#applyAttack(playerName, targetCoord);
     } catch (error) {
       errorManager.normalThrow(error);
     }
@@ -364,6 +366,8 @@ export class GameState {
       this.#stateData.currentState = this.#possibleCurrentStates[0];
 
       shipPlacement.beginShipPlacements();
+
+      this.#emitGameStateData();
     } catch (error) {
       errorManager.normalThrow(error);
     }
@@ -382,13 +386,15 @@ export class GameState {
         );
       }
 
-      const { shipPlacement, match } = this.#helperClassInstances;
+      const { shipPlacement, match } = this.#helperStateInstances;
 
       shipPlacement.endShipPlacements();
       this.#stateData.finishedStateStatus.shipPlacement = true;
 
       this.#stateData.currentState = this.#possibleCurrentStates[1];
       match.beginMatch();
+
+      this.#emitGameStateData();
     } catch (error) {
       errorManager.normalThrow(error);
     }
@@ -513,7 +519,7 @@ export class BattleState {
 
     if (player === whosTurn) {
       throw new Error(
-        `Failed to attack a specific player, as it appears to actually be their turn to make a move`
+        `Failed to attack the target player, as it appears to be their turn to make a move`
       );
     }
 
@@ -565,9 +571,11 @@ export class BattleState {
     if (player1Health === 0) {
       this.#stateData.finished = true;
       this.#stateData.winner = "player2";
+      this.#stateData.whosTurn = null;
     } else if (player2Health === 0) {
       this.#stateData.finished = true;
       this.#stateData.winner = "player1";
+      this.#stateData.whosTurn = null;
     }
   }
 
@@ -772,20 +780,6 @@ export class ShipPlacementState {
 
   //--------STATE-MANAGEMENT-------//
 
-  //initializes/resets the state
-  #initState() {
-    const { player1, player2 } = this.#playerInstances;
-
-    player1.resetState();
-    player2.resetState();
-
-    this.#stateData.currentState = true;
-    this.#stateData.finished = false;
-
-    this.#stateData.numOfShips.player1 = 0;
-    this.#stateData.numOfShips.player2 = 0;
-  }
-
   //adds ships to the specific player's board using the number of ships the player has as the
   //index for the array representing ship lengths. This way I can use the data points to facilitate
   //only the correct amount of ships, as well as picking the ships in the right order naturally
@@ -860,16 +854,6 @@ export class ShipPlacementState {
 
   //-------------APIs--------------//
 
-  // #stateData = {
-  //   currentState: false,
-  //   finished: false,
-  //   numOfShips: {
-  //     player1: 0,
-  //     player2: 0,
-  //   },
-  //   shipLengths: [5, 4, 3, 3, 2],
-  // };
-
   resetState() {
     this.#stateData.currentState = false;
     this.#stateData.finished = false;
@@ -921,6 +905,7 @@ export class ShipPlacementState {
       }
 
       this.#stateData.currentState = false;
+      this.#emitShipPlacementState();
     } catch (error) {
       errorManager.normalThrow(error);
     }
@@ -939,7 +924,7 @@ export class ShipPlacementState {
         );
       }
 
-      this.#initState();
+      this.#stateData.currentState = true;
       this.#emitShipPlacementState();
     } catch (error) {
       errorManager.normalThrow(error);
@@ -956,11 +941,15 @@ export class PlayerState {
         playerNum,
       });
 
+      //specifically for the case of initializing the player state instance
       this.#initPublisherInstance();
       this.#playerGameState.playerNum = playerNum;
 
-      this.#buildBoard();
-      this.#buildMadeAttacksBoard();
+      //general method to build both the main board that represents the ship placements
+      //and the made attacks board that logs all spaces that have been attacked on the
+      //player's board
+      this.#playerGameState.mainBoard = this.#buildBoard();
+      this.#playerGameState.madeAttacksBoard = this.#buildBoard();
     } catch (error) {
       errorManager.normalThrow(error);
     }
@@ -1024,6 +1013,19 @@ export class PlayerState {
     totalHealth: 0,
   };
 
+  //keeps track of the individual placed ships by assigning
+  //individual ships numbers in order to give the main board
+  //tiles specific identification
+  #shipNum = 1;
+
+  //represents the grid values to be used to represent empty tiles
+  //and tiles that have been attacked. The shipNum will represent
+  //individual ships that were placed
+  #gridVals = {
+    emptySpace: 0,
+    hitSpace: 1,
+  };
+
   //---------HELPER-METHODS---------//
 
   #initPublisherInstance() {
@@ -1032,6 +1034,8 @@ export class PlayerState {
     publisher.addPublisherInstance("Player State");
   }
 
+  //builds an empty board, still uses the buildRow method to build
+  //rows with empty spaces within such.
   #buildBoard() {
     const newBoard = [],
       { rows } = this.#boardDimensions;
@@ -1042,28 +1046,17 @@ export class PlayerState {
       newBoard.push(newRow);
     }
 
-    this.#playerGameState.mainBoard = newBoard;
+    return newBoard;
   }
 
-  #buildMadeAttacksBoard() {
-    const newBoard = [],
-      { rows } = this.#boardDimensions;
-
-    for (let i = 0; i < rows; i++) {
-      const newRow = this.#buildRow();
-
-      newBoard.push(newRow);
-    }
-
-    this.#playerGameState.madeAttacksBoard = newBoard;
-  }
-
+  //builds a generic row, autofilling the element slots according
+  //to the number of columns, and filling each element as an empty space value
   #buildRow() {
     const newRow = [],
       { columns } = this.#boardDimensions;
 
     for (let i = 0; i < columns; i++) {
-      newRow.push("----");
+      newRow.push(this.#gridVals.emptySpace);
     }
 
     return newRow;
@@ -1075,7 +1068,7 @@ export class PlayerState {
   //not valid
   #determinePlacementLegibility(shipLength, originCoord, axis) {
     //should check the possible mapping on the player board given the args
-    const { mainBoard, madeAttacksBoard } = this.#playerGameState,
+    const { mainBoard } = this.#playerGameState,
       coordsListObj = this.#returnCoordsList(
         shipLength,
         originCoord,
@@ -1083,9 +1076,9 @@ export class PlayerState {
         mainBoard
       );
 
-    //all values have to be equal to "-" in order to be a valid placement
+    //all values have to be equal to an empty space in order to be a valid placement
     for (let i = 0; i < coordsListObj.values.length; i++) {
-      if (coordsListObj.values[i] !== "----") {
+      if (coordsListObj.values[i] !== this.#gridVals.emptySpace) {
         return null;
       }
     }
@@ -1100,10 +1093,12 @@ export class PlayerState {
       const row = placementCoords[i][0],
         column = placementCoords[i][1];
 
-      //turn the respective coordinates equal to a ship tile, and add a health point per added tile
-      this.#playerGameState.mainBoard[row][column] = "Ship";
+      //turn the respective coordinates equal to a ship tile using the current ship number available, and add a health point per added tile
+      this.#playerGameState.mainBoard[row][column] = this.#shipNum;
       this.#playerGameState.totalHealth++;
     }
+
+    this.#shipNum++;
   }
 
   //------APPLY-DAMAGE-TO-BOARD-----//
@@ -1117,7 +1112,7 @@ export class PlayerState {
 
     const coordValue = this.#playerGameState.madeAttacksBoard[row][column];
 
-    return coordValue === "----"; //determines if the coord is valid and hasn't been attacked already
+    return coordValue === this.#gridVals.emptySpace; //determines if the coord is valid and hasn't been attacked already
   }
 
   #reflectAttackInState(gridCoord) {
@@ -1128,19 +1123,24 @@ export class PlayerState {
 
     const coordValue = this.#playerGameState.mainBoard[row][column];
 
-    if (coordValue === "Ship") {
+    if (coordValue !== this.#gridVals.emptySpace) {
       //if the attack was a hit
       this.#playerGameState.totalHealth--;
     }
 
-    this.#playerGameState.madeAttacksBoard[row][column] = "XXXX";
+    this.#playerGameState.madeAttacksBoard[row][column] = 1;
   }
 
   //---------COORDS-RETRIEVAL-------//
 
-  //creates an object with two arrays, in which each index corresponds with one another
-  //this way you can check the values plainly for a valid move, and then use the corresponding
-  //coords for said values in a single easy to use format
+  //creates an object with two arrays, in which each index corresponds with one another.
+  //By traversing and recording the values of the supplied matrix, you can scan for
+  //invalid spaces along the axis of the origin coord, in which you traverse the distance
+  //of the supplied length along the starting point.
+
+  //after such traversal and scan has been made, the corresponding values per traversed coord is returned,
+  //and thus those values can be used in the comparison for the given situation, whether it be for
+  //testing a ship placement, or making a valid attack.
   #returnCoordsList(length, originCoord, axis, suppliedMatrix) {
     const coordsList = {
       coords: [],
@@ -1152,19 +1152,23 @@ export class PlayerState {
 
     for (let i = 0; i < length; i++) {
       if (axis === "Vertical") {
+        //for traversing vertically
         const derivedCoord = [row, column],
           corresValue = suppliedMatrix[row][column];
 
         row++;
 
+        //save the pair to the coordsList
         coordsList.coords.push(derivedCoord);
         coordsList.values.push(corresValue);
       } else if (axis === "Horizontal") {
+        //for traversing horizontally
         const derivedCoord = [row, column],
           corresValue = suppliedMatrix[row][column];
 
         column++;
 
+        //save the pair to the coordsList
         coordsList.coords.push(derivedCoord);
         coordsList.values.push(corresValue);
       } else {
@@ -1179,6 +1183,8 @@ export class PlayerState {
 
   //-------PLAYER-STATE-PUB-SUB-----//
 
+  //used to emit the player state to subscribers any instance that
+  //the state is changed in some way, be it an attack or a placed ship
   #emitPlayerStateToSubscribers() {
     const { publisher } = this.#helperClassInstances,
       playerStateCopy = lodash.cloneDeep(this.#playerGameState);
@@ -1217,9 +1223,8 @@ export class PlayerState {
   //resets the player state for situations such as starting a new game
   resetState() {
     try {
-      this.#buildBoard();
-      this.#buildMadeAttacksBoard();
-
+      this.#playerGameState.mainBoard = this.#buildBoard();
+      this.#playerGameState.madeAttacksBoard = this.#buildBoard();
       this.#playerGameState.totalHealth = 0;
 
       this.#emitPlayerStateToSubscribers();
