@@ -16,20 +16,26 @@ class BattleShipEnums {
   static DOMGridConstants = Object.freeze({
     //For defining a specific ship space on the DOM grid
     SHIP_CLASS_TAG_PREFIX: "Ship-",
+    HIT_CLASS_TAG: "Hit",
+    MISS_CLASS_TAG: "Miss",
 
     //element ref prefixes used in tandem in order to define
     //a specific grid tile belonging to a specific player
-    ELEMENT_REF_TILE_PREFIX: "Tile-",
     ELEMENT_REF_PLAYER_PREFIX: "Player-",
+    ELEMENT_REF_TILE_PREFIX: "Tile-",
   });
 
-  static hitMatrixConstants = Object.freeze({
+  static matrixConstants = Object.freeze({
     EMPTY_SPACE: 0,
-    HIT: 1,
+    NUM_OF_ROWS: 10,
+    NUM_OF_COLUMNS: 10,
+  });
+
+  static attacksMadeMatrixConstants = Object.freeze({
+    ATTACK_MADE: 1,
   });
 
   static shipPlacementMatrixConstants = Object.freeze({
-    EMPTY_SPACE: 0,
     SHIP_LENGTHS: [5, 4, 3, 3, 2],
     SHIP_1: 1,
     SHIP_2: 2,
@@ -55,11 +61,18 @@ class StyleBoardFocus {
   constructor(elementRefManager) {}
 }
 
-class DisplayMadeAttacks {
-  constructor(elementRefManager) {}
-}
+//should be able to accept both ship placement matrices and
+//attacks made matrices from both players. If a ship placement grid
+//is supplied when an attack has already been applied to the DOM
+//the DOM is wiped of all applied made attacks, as well as the attacks made
+//matrices currently in state. This is so that any instance of a new ship placement
+//automatically resets the attacks made visually and logically for correct syncing
 
-class DisplayShipPlacements {
+//applying the attacks made to the DOM will otherwise be similar to how
+//ship placements are applied to the DOM. Supply the updated matrix,
+//and then display the matrix stored to state.
+
+class DisplayMadeAttacks {
   constructor(elementRefManager) {
     try {
       const { argValidator } = this.#helperClassInstances;
@@ -68,8 +81,7 @@ class DisplayShipPlacements {
       this.#helperClassInstances.elementRefManager = elementRefManager;
 
       this.#initStateDataStructures();
-
-      this.#retrievePlayerRefs();
+      this.#retrieveElementRefs();
     } catch (error) {
       errorManager.normalThrow(error);
     }
@@ -84,28 +96,45 @@ class DisplayShipPlacements {
     elementRefManager: null,
   };
 
+  //upon init
   // player1: {},
   // player2: {},
   #retrievedElementRefs = {};
 
-  // newPlayerShipGrid: {
+  //flags for managing whether to allow
+  //a visual update for a specific player
+  //based on if a new grid reference was supplied
+
+  //upon init
+  // newPlayerMadeAttacksGrid: {
+  //   player1: false,
+  //   player2: false,
+  // },
+  // madeAttacksAppliedToDOM: {
   //   player1: false,
   //   player2: false,
   // },
   #stateData = {};
 
-  //player1: false,
-  //player2: false,
+  //upon init
+  //player1: null,
+  //player2: null,
+  #playerMadeAttacksGrids = {};
+
+  //upon init
+  //player1: null,
+  //player2: null,
   #playerShipGrids = {};
 
   #instructionsValidProperties = {
-    action: [`Remove`, `Update`],
+    action: [`Remove`, `Update`, `Reset`],
   };
 
   #validTypes = ["object", "boolean", "null"];
 
   //---------HELPER-METHODS-----------//
 
+  //******INITIALIZATION*******/
   #initStateDataStructures() {
     for (let method of this.#initDataStructureHelperMethods) {
       method();
@@ -116,6 +145,488 @@ class DisplayShipPlacements {
     retrievedElementRefs: () => {
       const { PLAYER_1_NAME, PLAYER_2_NAME } = BattleShipEnums.playerConstants;
 
+      //inits player 1 and player 2 properties
+      //equal to empty objects
+      this.#initKeyValueStruct(
+        this.#retrievedElementRefs,
+        PLAYER_1_NAME,
+        this.#validTypes[0]
+      );
+
+      this.#initKeyValueStruct(
+        this.#retrievedElementRefs,
+        PLAYER_2_NAME,
+        this.#validTypes[0]
+      );
+    },
+    playerMadeAttacksGrids: () => {
+      const { PLAYER_1_NAME, PLAYER_2_NAME } = BattleShipEnums.playerConstants;
+
+      //inits player 1 and player 2 properties equal
+      //to null
+      this.#initKeyValueStruct(
+        this.#playerMadeAttacksGrids,
+        PLAYER_1_NAME,
+        this.#validTypes[2]
+      );
+
+      this.#initKeyValueStruct(
+        this.#playerMadeAttacksGrids,
+        PLAYER_2_NAME,
+        this.#validTypes[2]
+      );
+    },
+    stateData: () => {
+      const { PLAYER_1_NAME, PLAYER_2_NAME } = BattleShipEnums.playerConstants,
+        NPMAG = "newPlayerMadeAttacksGrid",
+        MAATD = "madeAttacksAppliedToDOM";
+
+      //inits a property 'newPlayerShipGrid' in which within it inits
+      //player 1 and player 2 properties equal to a boolean value, starting
+      //with false
+
+      //*******NPMAG*******/
+
+      this.#initKeyValueStruct(this.#stateData, NPMAG, this.#validTypes[0]);
+
+      //NESTED
+      this.#initKeyValueStruct(
+        this.#stateData[NPMAG],
+        PLAYER_1_NAME,
+        this.#validTypes[1] //boolean
+      );
+
+      this.#initKeyValueStruct(
+        this.#stateData[NPMAG],
+        PLAYER_2_NAME,
+        this.#validTypes[1]
+      );
+
+      //*******MAATD*******/
+
+      this.#initKeyValueStruct(this.#stateData, MAATD, this.#validTypes[0]);
+
+      //NESTED
+      this.#initKeyValueStruct(
+        this.#stateData[MAATD],
+        PLAYER_1_NAME,
+        this.#validTypes[1]
+      );
+
+      this.#initKeyValueStruct(
+        this.#stateData[MAATD],
+        PLAYER_2_NAME,
+        this.#validTypes[1]
+      );
+    },
+    playerShipGrids: () => {
+      const { PLAYER_1_NAME, PLAYER_2_NAME } = BattleShipEnums.playerConstants;
+
+      //inits player 1 and player 2 properties equal
+      //to null
+      this.#initKeyValueStruct(
+        this.#playerShipGrids,
+        PLAYER_1_NAME,
+        this.#validTypes[2]
+      );
+
+      this.#initKeyValueStruct(
+        this.#playerShipGrids,
+        PLAYER_2_NAME,
+        this.#validTypes[2]
+      );
+    },
+  };
+
+  #initKeyValueStruct(targetObj, key, dataType) {
+    //have to initialize the needed data structures in state, as their properties
+    //are determined by a global constant
+    if (dataType === "object") {
+      targetObj[key] = new Object();
+    } else if (dataType === "boolean") {
+      targetObj[key] = false;
+    } else if (dataType === "null") {
+      targetObj[key] = null;
+    }
+  }
+
+  #retrieveElementRefs() {
+    //should retrieve the grid square references
+    //for both player 1 and player 2
+    const { PLAYER_1_NAME, PLAYER_2_NAME } = BattleShipEnums.playerConstants;
+
+    //retrieves the DOM tiles references that represent a corresponding
+    //matrix
+    this.#retrievePlayerTileDOMRefs(1, PLAYER_1_NAME);
+    this.#retrievePlayerTileDOMRefs(2, PLAYER_2_NAME);
+  }
+
+  #retrievePlayerTileDOMRefs(playerNum, playerName) {
+    const { elementRefManager } = this.#helperClassInstances,
+      { NUM_OF_ROWS, NUM_OF_COLUMNS } = BattleShipEnums.matrixConstants,
+      { ELEMENT_REF_TILE_PREFIX } = BattleShipEnums.DOMGridConstants;
+
+    const elementRefPlayerString =
+      BattleShipEnums.DOMGridConstants.ELEMENT_REF_PLAYER_PREFIX + playerNum;
+
+    //iterates over the matrix in order to create the necessary
+    //references keys for retrieving the grid tiles from the
+    //DOM for the corresponding player
+    for (let r = 0; r < NUM_OF_ROWS; r++) {
+      for (let c = 0; c < NUM_OF_COLUMNS; c++) {
+        const gridTileNum = this.#calcTileNum(r, c), // returns the current tile number based on the iteration
+          tileTag = ELEMENT_REF_TILE_PREFIX + gridTileNum, // tile${gridTileNum}
+          refKey = elementRefPlayerString + tileTag; //creates the complete ref key representing a specific DOM tile for a specific player
+
+        const retrievedTile = elementRefManager.retrieveRef(refKey);
+
+        //ex: player1: {
+        //      tile0: element,
+        //      tile1: element,
+        //       ... for the complete iteration
+        //    }
+        this.#retrievedElementRefs[playerName][tileTag] = retrievedTile;
+      }
+    }
+  }
+
+  //*********UTILITIES*********/
+
+  #updateNewMadeAttacksGridFlags(gridsThatWereUpdated) {
+    //checks each player property, in which if that player
+    //was updated, change the new ship grid flag corresponding to
+    //them to false
+    for (let player in gridsThatWereUpdated) {
+      if (gridsThatWereUpdated[player]) {
+        this.#stateData.newPlayerMadeAttacksGrid[player] = false;
+        this.#stateData.madeAttacksAppliedToDOM[player] = true;
+      }
+    }
+  }
+
+  #createTileTag(tileNum) {
+    const { ELEMENT_REF_TILE_PREFIX } = BattleShipEnums.DOMGridConstants;
+    return ELEMENT_REF_TILE_PREFIX + tileNum;
+    //returns something like 'Tile-${tileNum}'
+  }
+
+  #calcTileNum(rowNum, colNum) {
+    //both the rows and columns on the logical matrices use a 0 index,
+    //thus you can multiply the current row number by 10 and add it to the column
+    //number to get the corresponding tile number starting from 0
+    return rowNum * 10 + colNum;
+  }
+
+  //-----STYLE-ORIENTED-METHODS------//
+
+  #determinePlayersToUpdate(updateRule) {
+    const { PLAYER_1_NAME, PLAYER_2_NAME } = BattleShipEnums.playerConstants;
+
+    //create the flag data structure using the enums constants for
+    //the players
+    const playersToUpdate = {};
+    playersToUpdate[PLAYER_1_NAME] = false;
+    playersToUpdate[PLAYER_2_NAME] = false;
+
+    //all players in some capacity
+    if (updateRule === "All" || updateRule === "Reset") {
+      for (let player in playersToUpdate) {
+        playersToUpdate[player] = true;
+      }
+    }
+
+    //specific target players
+
+    if (updateRule === PLAYER_1_NAME) {
+      playersToUpdate[PLAYER_1_NAME] = true;
+    }
+
+    if (updateRule === PLAYER_2_NAME) {
+      playersToUpdate[PLAYER_2_NAME] = true;
+    }
+
+    return playersToUpdate;
+  }
+
+  createClassAlteringInstructions(
+    element,
+    madeAttacksMatrixCoordVal,
+    shipsPlacedMatrixCoordVal
+  ) {
+    //needs to return an object with the 'action' property that dictates the encompassing
+    //action to do on the specific element. Uses the matrixCoordVal in order to decide whether
+    //the element should be altered with class tag wise for attacks
+    const { HIT_CLASS_TAG, MISS_CLASS_TAG } = BattleShipEnums.DOMGridConstants,
+      { EMPTY_SPACE } = BattleShipEnums.matrixConstants,
+      { ATTACK_MADE } = BattleShipEnums.attacksMadeMatrixConstants;
+
+    const instructions = {
+      action: null,
+      tagFound: null,
+      shipPlacementMatrixCoordVal: null,
+    };
+
+    //logic in order to create the right instructions based on whether the logical representation is
+
+    return instructions;
+  }
+
+  #removeShipTag(element, instructions) {
+    //logic to remove a tag if applicable by the instructions
+  }
+
+  #addShipTag(element, instructions) {
+    //adds a specific attack tag representing a specific attack if applicable by the instructions
+  }
+
+  #updatePlayerMadeAttackTag(
+    playerName,
+    gridTileNum,
+    madeAttacksMatrixCoordVal,
+    shipsPlacedMatrixCoordVal
+  ) {
+    //matrixCoordVal is the value on the logical matrix, not the DOM tiles, in this
+    //case the matrix for managing made attacks
+    const playerTileElement =
+      this.#retrievedElementRefs[playerName][this.#createTileTag(gridTileNum)];
+
+    const instructions = this.createClassAlteringInstructions(
+      playerTileElement,
+      madeAttacksMatrixCoordVal,
+      shipsPlacedMatrixCoordVal
+    );
+
+    //consolidates the generic actions to take on the element based on the
+    //action to take based on the instructions created for the given element
+    //these methods will execute based on the supplied instructions
+    this.#removeShipTag(playerTileElement, instructions);
+    this.#addShipTag(playerTileElement, instructions);
+  }
+
+  #updateGridMadeAttacksTags(updateRule) {
+    //should iterate over both player matrices containing the logical placements
+    //at the same time. It will remove all incorrect ship tag references
+    //and apply the right ship tag references if applicable for the specific coordinate
+    const { PLAYER_1_NAME, PLAYER_2_NAME } = BattleShipEnums.playerConstants,
+      { NUM_OF_ROWS, NUM_OF_COLUMNS } = BattleShipEnums.matrixConstants;
+
+    //enables the ability to determine a complex update list based on the supplied rule
+    //including things like specific players, or all players
+    const gridsToUpdate = this.#determinePlayersToUpdate(updateRule);
+
+    for (let r = 0; r < NUM_OF_ROWS; r++) {
+      for (let c = 0; c < NUM_OF_COLUMNS; c++) {
+        //iterates over the player grid matrix from top left
+        //to bottom right
+
+        //calculate the current grid tile number using the iterator index values
+        const gridTileNum = this.#calcTileNum(r, c);
+
+        if (gridsToUpdate[PLAYER_1]) {
+          //pull the corresponding logical matrix coordinate value
+          const madeAttacksMatrixCoordVal =
+            this.#playerMadeAttacksGrids[PLAYER_1_NAME][r][c];
+
+          const shipPlacementMatrixCoordVal =
+            this.#playerShipGrids[PLAYER_1_NAME][r][c];
+
+          this.#updatePlayerMadeAttackTag(
+            PLAYER_1_NAME,
+            gridTileNum,
+            madeAttacksMatrixCoordVal,
+            shipPlacementMatrixCoordVal
+          );
+        }
+
+        if (gridsToUpdate[PLAYER_2]) {
+          const madeAttacksMatrixCoordVal =
+            this.#playerMadeAttacksGrids[PLAYER_2_NAME][r][c];
+
+          const shipPlacementMatrixCoordVal =
+            this.#playerShipGrids[PLAYER_2_NAME][r][c];
+
+          this.#updatePlayerMadeAttackTag(
+            PLAYER_2_NAME,
+            gridTileNum,
+            madeAttacksMatrixCoordVal,
+            shipPlacementMatrixCoordVal
+          );
+        }
+      }
+    }
+
+    //same flags will be used in order to
+    //update the stored new grid flags in state
+    return gridsToUpdate;
+  }
+
+  //------------APIs-----------------//
+
+  //when the placed ships are updated, will also wipe all attacks
+  //if applicable
+  updatePlayerPlacedShips(playerName, playerShipGrid) {
+    try {
+      const { argValidator } = this.#helperClassInstances;
+      argValidator.validate("updatePlayerPlacedShips", {
+        playerName,
+        playerShipGrid,
+      });
+
+      //store the grid, no update flag though
+      this.#playerShipGrids[playerName] = playerShipGrid;
+      this.#stateData.newPlayerShipGrid[playerName] = true;
+
+      if (this.#stateData.madeAttacksAppliedToDOM[playerName]) {
+        //logic to wipe the corresponding player grid of the applied attacks
+        //class tag wise. Also involves reseting the various flags related
+        //to applying the made attacks in state to DOM
+
+        this.#stateData.madeAttacksAppliedToDOM[playerName] = false;
+      }
+    } catch (error) {
+      errorManager.normalThrow(error);
+    }
+  }
+
+  //The methods below should only be invoked when the ship placements
+  //are final
+  updatePlayerMadeAttacks(playerName, playerMadeAttacksGrid) {
+    try {
+      const { argValidator } = this.#helperClassInstances;
+      argValidator.validate("updatePlayerMadeAttacks", {
+        playerName,
+        playerMadeAttacksGrid,
+      });
+
+      //store the grid, and update the new grid flag
+      this.#playerMadeAttacksGrids[playerName] = playerMadeAttacksGrid;
+      this.#stateData.madeAttacksAppliedToDOM[playerName] = true;
+    } catch (error) {
+      errorManager.normalThrow(error);
+    }
+  }
+
+  //updateRule -> player 1 name enum val, player 2 name enum val, 'All'
+  displayPlayerMadeAttacks(updateRule) {
+    //a visual update for the corresponding player will commence only
+    //if a new player ship grid reference was supplied before hand
+    try {
+      const { argValidator } = this.#helperClassInstances;
+      argValidator.validate("displayPlayerMadeAttacks", { updateRule });
+
+      //will immediately return if the specific made attacks grid is not new, if
+      //such is a player of course. The validator will catch args that aren't allowed,
+      //thus if such fails the if check, then its most likely a special rule
+      if (
+        updateRule in this.#stateData.newPlayerMadeAttacksGrid &&
+        !this.#stateData.newPlayerMadeAttacksGrid[updateRule]
+      ) {
+        return;
+      } else {
+        const gridsUpdated = this.#updateGridMadeAttacksTags(updateRule);
+        this.#updateNewMadeAttacksGridFlags(gridsUpdated);
+      }
+    } catch (error) {
+      errorManager.normalThrow(error);
+    }
+  }
+}
+
+class DisplayShipPlacements {
+  constructor(elementRefManager) {
+    try {
+      const { argValidator } = this.#helperClassInstances;
+      argValidator.validate("constructor", { elementRefManager });
+
+      this.#helperClassInstances.elementRefManager = elementRefManager;
+
+      this.#initStateDataStructures();
+      this.#retrieveElementRefs();
+    } catch (error) {
+      errorManager.normalThrow(error);
+    }
+  }
+
+  //------STATE-AND-CONFIG-DATA------//
+
+  #argumentValidationRules = {
+    constructor: {
+      elementRefManager: {
+        instanceof: ElementRefManager,
+      },
+    },
+    displayPlayerPlacedShips: {
+      updateRule: {
+        typeof: "string",
+        validValues: [
+          BattleShipEnums.playerConstants.PLAYER_1_NAME,
+          BattleShipEnums.playerConstants.PLAYER_2_NAME,
+          "All",
+        ],
+      },
+    },
+    updatePlayerPlacedShips: {
+      playerName: {
+        typeof: "string",
+        validValues: [
+          BattleShipEnums.playerConstants.PLAYER_1_NAME,
+          BattleShipEnums.playerConstants.PLAYER_2_NAME,
+        ],
+      },
+      playerShipGrid: {
+        isArray: true,
+        arrElementType: "object", //checks for elements that equal an array, which has and object type
+      },
+    },
+  };
+
+  #helperClassInstances = {
+    argValidator: new ArgumentValidation(this.#argumentValidationRules),
+    elementRefManager: null,
+  };
+
+  //upon init
+  // player1: {},
+  // player2: {},
+  #retrievedElementRefs = {};
+
+  //flags for managing whether to allow
+  //a visual update for a specific player
+  //based on if a new grid reference was supplied
+
+  //upon init
+  // newPlayerShipGrid: {
+  //   player1: false,
+  //   player2: false,
+  // },
+  #stateData = {};
+
+  //upon init
+  //player1: null,
+  //player2: null,
+  #playerShipGrids = {};
+
+  #instructionsValidProperties = {
+    action: [`Remove`, `Update`],
+  };
+
+  #validTypes = ["object", "boolean", "null"];
+
+  //---------HELPER-METHODS-----------//
+
+  //******INITIALIZATION*******/
+  #initStateDataStructures() {
+    for (let method of this.#initDataStructureHelperMethods) {
+      method();
+    }
+  }
+
+  #initDataStructureHelperMethods = {
+    retrievedElementRefs: () => {
+      const { PLAYER_1_NAME, PLAYER_2_NAME } = BattleShipEnums.playerConstants;
+
+      //inits player 1 and player 2 properties
+      //equal to empty objects
       this.#initKeyValueStruct(
         this.#retrievedElementRefs,
         PLAYER_1_NAME,
@@ -131,6 +642,8 @@ class DisplayShipPlacements {
     playerShipGrids: () => {
       const { PLAYER_1_NAME, PLAYER_2_NAME } = BattleShipEnums.playerConstants;
 
+      //inits player 1 and player 2 properties equal
+      //to null
       this.#initKeyValueStruct(
         this.#playerShipGrids,
         PLAYER_1_NAME,
@@ -144,22 +657,27 @@ class DisplayShipPlacements {
       );
     },
     stateData: () => {
-      const { PLAYER_1_NAME, PLAYER_2_NAME } = BattleShipEnums.playerConstants;
+      const { PLAYER_1_NAME, PLAYER_2_NAME } = BattleShipEnums.playerConstants,
+        outerProperty = "newPlayerShipGrid";
 
+      //inits a property 'newPlayerShipGrid' in which within it inits
+      //player 1 and player 2 properties equal to a boolean value, starting
+      //with false
       this.#initKeyValueStruct(
         this.#stateData,
-        "newPlayerShipGrid",
+        outerProperty,
         this.#validTypes[0]
       );
 
+      //NESTED
       this.#initKeyValueStruct(
-        this.#stateData.newPlayerShipGrid,
+        this.#stateData[outerProperty],
         PLAYER_1_NAME,
         this.#validTypes[1]
       );
 
       this.#initKeyValueStruct(
-        this.#stateData.newPlayerShipGrid,
+        this.#stateData[outerProperty],
         PLAYER_2_NAME,
         this.#validTypes[1]
       );
@@ -178,9 +696,86 @@ class DisplayShipPlacements {
     }
   }
 
-  #retrievePlayerRefs() {
+  #retrieveElementRefs() {
     //should retrieve the grid square references
     //for both player 1 and player 2
+    const { PLAYER_1_NAME, PLAYER_2_NAME } = BattleShipEnums.playerConstants;
+
+    //retrieves the DOM tiles references that represent a corresponding
+    //matrix
+    this.#retrievePlayerTileDOMRefs(1, PLAYER_1_NAME);
+    this.#retrievePlayerTileDOMRefs(2, PLAYER_2_NAME);
+  }
+
+  #retrievePlayerTileDOMRefs(playerNum, playerName) {
+    const { elementRefManager } = this.#helperClassInstances,
+      { NUM_OF_ROWS, NUM_OF_COLUMNS } = BattleShipEnums.matrixConstants,
+      { ELEMENT_REF_TILE_PREFIX } = BattleShipEnums.DOMGridConstants;
+
+    const elementRefPlayerString =
+      BattleShipEnums.DOMGridConstants.ELEMENT_REF_PLAYER_PREFIX + playerNum;
+
+    //iterates over the matrix in order to create the necessary
+    //references keys for retrieving the grid tiles from the
+    //DOM for the corresponding player
+    for (let r = 0; r < NUM_OF_ROWS; r++) {
+      for (let c = 0; c < NUM_OF_COLUMNS; c++) {
+        const gridTileNum = this.#calcTileNum(r, c), // returns the current tile number based on the iteration
+          tileTag = ELEMENT_REF_TILE_PREFIX + gridTileNum, // Tile-${gridTileNum}
+          refKey = elementRefPlayerString + tileTag; //creates the complete ref key representing a specific DOM tile for a specific player
+
+        const retrievedTile = elementRefManager.retrieveRef(refKey);
+
+        //ex: player1: {
+        //      Tile-0: element,
+        //      Tile-1: element,
+        //       ... for the complete iteration
+        //    }
+        this.#retrievedElementRefs[playerName][tileTag] = retrievedTile;
+      }
+    }
+  }
+
+  //*********UTILITIES*********/
+
+  #determinePlayersToUpdate(updateRule) {
+    const { PLAYER_1_NAME, PLAYER_2_NAME } = BattleShipEnums.playerConstants;
+
+    //create the flag data structure using the enums constants for
+    //the players
+    const playersToUpdate = {};
+    playersToUpdate[PLAYER_1_NAME] = false;
+    playersToUpdate[PLAYER_2_NAME] = false;
+
+    //all players in some capacity, but not limited to "All"
+    //conceptually
+    if (updateRule === "All") {
+      for (let player in playersToUpdate) {
+        playersToUpdate[player] = true;
+      }
+    }
+
+    //specific target players
+
+    if (updateRule === PLAYER_1_NAME) {
+      playersToUpdate[PLAYER_1_NAME] = true;
+    }
+
+    if (updateRule === PLAYER_2_NAME) {
+      playersToUpdate[PLAYER_2_NAME] = true;
+    }
+
+    return playersToUpdate;
+  }
+  #updateNewShipMatrixFlags(gridsThatWereUpdated) {
+    //checks each player property, in which if that player
+    //was updated, change the new ship grid flag corresponding to
+    //them to false
+    for (let player in gridsThatWereUpdated) {
+      if (gridsThatWereUpdated[player]) {
+        this.#stateData.newPlayerShipGrid[player] = false;
+      }
+    }
   }
 
   #createTileTag(tileNum) {
@@ -189,49 +784,24 @@ class DisplayShipPlacements {
     //returns something like 'Tile-${tileNum}'
   }
 
-  #updateNewGridFlags(gridsThatWereUpdated) {
-    for (let player in gridsThatWereUpdated) {
-      if (gridsThatWereUpdated[player]) {
-        this.#stateData.newPlayerShipGrid[player] = false;
-      }
-    }
-  }
-
   #calcTileNum(rowNum, colNum) {
-    return (rowNum - 1) * 10 + colNum;
-    //per row represents a full 10 spaces, thus if you were on row 2,
-    // that would mean you would have to be atleast on tile 11 or at most tile 19
+    //both the rows and columns on the logical matrices use a 0 index,
+    //thus you can multiply the current row number by 10 and add it to the column
+    //number to get the corresponding tile number starting from 0
+
+    const rowMultiplier = 10;
+
+    return rowNum * rowMultiplier + colNum;
   }
 
-  //-----STYLE-APPLYING-METHODS------//
-
-  #determinePlayersToUpdate(updateRule) {
-    const { PLAYER_1_NAME, PLAYER_2_NAME } = BattleShipEnums.playerConstants;
-
-    const playersToUpdate = {};
-    playersToUpdate[PLAYER_1_NAME] = false;
-    playersToUpdate[PLAYER_2_NAME] = false;
-
-    if (updateRule === PLAYER_1_NAME || updateRule === "All") {
-      playersToUpdate[PLAYER_1_NAME] = true;
-    }
-
-    if (updateRule === PLAYER_2_NAME || updateRule === "All") {
-      playersToUpdate[PLAYER_2_NAME] = true;
-    }
-
-    //essentially returns an object with two properties
-    //each representing a single player. Attached to those properties
-    //is a boolean value on whether to update the corresponding player
-    return playersToUpdate;
-  }
+  //---CLASS-TAG-ORIENTED-METHODS----//
 
   #scanForShipTag(element, matrixCoordVal) {
     //needs to return an object with the 'action' property that dictates the encompassing
     //action to do on the specific element. Uses the gridTileVal in order to decide whether
     //the element should be altered with class tag wise
     const { SHIP_CLASS_TAG_PREFIX } = BattleShipEnums.DOMGridConstants,
-      { EMPTY_SPACE } = BattleShipEnums.shipPlacementMatrixConstants;
+      { EMPTY_SPACE } = BattleShipEnums.matrixConstants;
 
     const instructions = {
       action: null,
@@ -243,7 +813,7 @@ class DisplayShipPlacements {
 
     for (let tag of elementClassList) {
       if (tag.startsWith(SHIP_CLASS_TAG_PREFIX)) {
-        instructions.tagFound = tag;
+        instructions.tagFound = tag; //a ship tag was found, store it in the instructions
 
         tagShipNum = parseInt(tag.split("").pop()); //need to grab the ship number off the end of the tag
         break;
@@ -273,18 +843,30 @@ class DisplayShipPlacements {
     return instructions;
   }
 
-  #removeShipTag(element, tagFound) {
-    //uses the supplied instructions in order to remove the corresponding
-    //class tag for a ship placement. The instructions should already include
-    //the class tag alias exactly, as well as the index it exists at within
-    //the class list
-
-    element.classList.remove(tagFound);
+  #removeShipTag(element, instructions) {
+    if (
+      //remove
+      instructions.action === this.#instructionsValidProperties.action[0] ||
+      instructions.action === this.#instructionsValidProperties.action[1]
+      //or update
+    ) {
+      element.classList.remove(tagFound);
+    }
   }
 
   #addShipTag(element, shipNum) {
     //adds a ship tag using the ship number to create the tag, and then add
     //said tag to the class list of the element
+
+    if (
+      //update
+      instructions.action === this.#instructionsValidProperties.action[1]
+    ) {
+      const { SHIP_CLASS_TAG_PREFIX } = BattleShipEnums.DOMGridConstants,
+        shipClassTag = SHIP_CLASS_TAG_PREFIX + shipNum;
+
+      element.classList.add(shipClassTag);
+    }
   }
 
   #updatePlayerShipTag(playerName, gridTileNum, matrixCoordVal) {
@@ -298,21 +880,11 @@ class DisplayShipPlacements {
       matrixCoordVal
     );
 
-    if (
-      //remove
-      instructions.action === this.#instructionsValidProperties.action[0] ||
-      instructions.action === this.#instructionsValidProperties.action[1]
-      //update
-    ) {
-      this.#removeShipTag(playerTileElement, instructions.tagFound);
-    }
+    //consolidates the generic actions to take on the element based on the
+    //action to take based on the instructions created for the given element
 
-    if (
-      //update
-      instructions.action === this.#instructionsValidProperties.action[1]
-    ) {
-      this.#addShipTag(playerTileElement, matrixCoordVal);
-    }
+    this.#removeShipTag(playerTileElement, instructions);
+    this.#addShipTag(playerTileElement, instructions);
   }
 
   #updateGridShipTags(updateRule) {
@@ -320,16 +892,14 @@ class DisplayShipPlacements {
     //at the same time. It will remove all ship tag references
     //and apply the right ship tag references if the current grid tile logically
     //is for a specific ship
-    const { PLAYER_1_NAME, PLAYER_2_NAME } = BattleShipEnums.playerConstants;
+    const { PLAYER_1_NAME, PLAYER_2_NAME } = BattleShipEnums.playerConstants,
+      { NUM_OF_ROWS, NUM_OF_COLUMNS } = BattleShipEnums.matrixConstants;
 
-    const playerGrid = this.#playerShipGrids[PLAYER_1_NAME],
-      numOfRows = playerGrid.length,
-      numOfCols = playerGrid[0].length;
-
+    //enables the ability to update either a specific player or all players
     const gridsToUpdate = this.#determinePlayersToUpdate(updateRule);
 
-    for (let r = 0; r < numOfRows; r++) {
-      for (let c = 0; c < numOfCols; c++) {
+    for (let r = 0; r < NUM_OF_ROWS; r++) {
+      for (let c = 0; c < NUM_OF_COLUMNS; c++) {
         //iterates over the player grid matrix from top left
         //to bottom right
 
@@ -351,33 +921,34 @@ class DisplayShipPlacements {
       }
     }
 
-    //will be used to update the corresponding new grid flags
+    //same flags will be used in order to
+    //update the stored new grid flags in state
     return gridsToUpdate;
   }
 
   //------------APIs-----------------//
 
-  //should take the currently saved ship placements
-  //in state, and apply the necessary class tags to the necessary
-  //grid square
-
+  //updateRule -> player 1 name enum val, player 2 name enum val, 'All'
   displayPlayerPlacedShips(updateRule) {
     //a visual update for the corresponding player will commence only
     //if a new player ship grid reference was supplied before hand
     try {
-      const { PLAYER_1_NAME, PLAYER_2_NAME } = BattleShipEnums.playerConstants;
-
-      const player1NewGrid = this.#stateData.newPlayerShipGrid[PLAYER_1_NAME],
-        player2NewGrid = this.#stateData.newPlayerShipGrid[PLAYER_2_NAME];
-
       //only considers updating the DOM if atleast one flag has been check in terms
       //of a new player grid
-      if (player1NewGrid || player2NewGrid) {
-        const { argValidator } = this.#helperClassInstances;
-        argValidator.validate("displayPlayerPlacedShips", { updateRule });
+      const { argValidator } = this.#helperClassInstances;
+      argValidator.validate("displayPlayerPlacedShips", { updateRule });
 
+      //will immediately return if the specific made attacks grid is not new, if
+      //such is a player of course. The validator will catch args that aren't allowed,
+      //thus if such fails the if check, then its most likely a special rule
+      if (
+        updateRule in this.#stateData.newPlayerShipGrid &&
+        !this.#stateData.newPlayerShipGrid[updateRule]
+      ) {
+        return;
+      } else {
         const gridsUpdated = this.#updateGridShipTags(updateRule);
-        this.#updateNewGridFlags(gridsUpdated);
+        this.#updateNewShipMatrixFlags(gridsUpdated);
       }
     } catch (error) {
       errorManager.normalThrow(error);
@@ -391,6 +962,7 @@ class DisplayShipPlacements {
         playerShipGrid,
       });
 
+      //store the grid, and update the new grid flag
       this.#playerShipGrids[playerName] = playerShipGrid;
       this.#stateData.newPlayerShipGrid[playerName] = true;
     } catch (error) {
